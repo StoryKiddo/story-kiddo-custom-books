@@ -25,7 +25,7 @@ export default async function OrderPage({
       </p>
       <h1 className="mt-3 text-4xl text-ink">{order.bookTitle}</h1>
       <p className="mt-3 text-lg text-ink-soft">
-        {order.childName}, age {order.childAge}, is the star of a{" "}
+        {order.childName}, age {order.childAge}, is the star of this{" "}
         {order.track.name.toLowerCase()} story.
       </p>
 

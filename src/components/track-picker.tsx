@@ -35,7 +35,7 @@ export function TrackPicker({ tracks }: { tracks: Track[] }) {
             <>
               You chose <span className="font-semibold text-ink">{selected.name}</span>
               {" — "}
-              {selected.tagline.toLowerCase()}.
+              {selected.tagline}.
             </>
           ) : (
             "Select a track to personalize a book."
