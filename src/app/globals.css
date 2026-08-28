@@ -1,0 +1,54 @@
+@import "tailwindcss";
+
+/* Brand tokens: warm paper, storybook ink, and a few cover-like pastels. */
+:root {
+  --paper: #fbf4ea;
+  --paper-deep: #f3e6d4;
+  --ink: #2b241c;
+  --ink-soft: #5c5348;
+  --coral: #d96b4f;
+  --coral-dark: #b54e35;
+  --sage: #5e8f70;
+  --rule: rgba(43, 36, 28, 0.12);
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-paper-deep: var(--paper-deep);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-coral: var(--coral);
+  --color-coral-dark: var(--coral-dark);
+  --color-sage: var(--sage);
+  --color-rule: var(--rule);
+  --font-sans: var(--font-nunito);
+  --font-display: var(--font-fraunces);
+}
+
+html {
+  background: var(--paper);
+}
+
+body {
+  background-color: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-nunito), ui-sans-serif, system-ui, sans-serif;
+  /* Soft paper grain so the page feels like a printed book, not a blank canvas. */
+  background-image:
+    radial-gradient(ellipse at top left, rgba(232, 184, 109, 0.22), transparent 42%),
+    radial-gradient(ellipse at top right, rgba(126, 184, 196, 0.16), transparent 36%),
+    radial-gradient(circle at 20% 80%, rgba(207, 229, 212, 0.35), transparent 28%);
+  min-height: 100%;
+}
+
+h1,
+h2,
+h3,
+.font-display {
+  font-family: var(--font-fraunces), ui-serif, Georgia, serif;
+}
+
+::selection {
+  background: #f3ddb0;
+  color: var(--ink);
+}

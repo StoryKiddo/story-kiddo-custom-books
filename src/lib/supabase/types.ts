@@ -1,0 +1,92 @@
+/**
+ * Database row shapes that match `supabase/migrations/`.
+ *
+ * When the schema changes, update this file (or later generate it with
+ * `supabase gen types typescript`). Keeping these types by hand is fine
+ * for this first foundation.
+ */
+export type OrderStatus = "received" | "generating" | "ready" | "failed";
+export type BookStatus = "pending" | "generating" | "complete" | "failed";
+
+export type CustomerRow = {
+  id: string;
+  email: string | null;
+  created_at: string;
+};
+
+export type TrackRow = {
+  id: string;
+  slug: string;
+  name: string;
+  tagline: string;
+  description: string;
+  age_range: string;
+  cover: string;
+  ink: string;
+  sort_order: number;
+  created_at: string;
+};
+
+export type OrderRow = {
+  id: string;
+  customer_id: string;
+  track_id: string;
+  child_name: string;
+  child_age: number;
+  photo_path: string | null;
+  status: OrderStatus;
+  created_at: string;
+};
+
+export type BookRow = {
+  id: string;
+  order_id: string;
+  title: string | null;
+  status: BookStatus;
+  page_count: number | null;
+  created_at: string;
+};
+
+/**
+ * Minimal Database typing so supabase-js can autocomplete table names.
+ * Expand this as more tables or RPCs are added.
+ */
+export type Database = {
+  public: {
+    Tables: {
+      customers: {
+        Row: CustomerRow;
+        Insert: Partial<CustomerRow> & { email?: string | null };
+        Update: Partial<CustomerRow>;
+        Relationships: [];
+      };
+      tracks: {
+        Row: TrackRow;
+        Insert: Partial<TrackRow> & { slug: string; name: string };
+        Update: Partial<TrackRow>;
+        Relationships: [];
+      };
+      orders: {
+        Row: OrderRow;
+        Insert: Partial<OrderRow> & {
+          customer_id: string;
+          track_id: string;
+          child_name: string;
+          child_age: number;
+        };
+        Update: Partial<OrderRow>;
+        Relationships: [];
+      };
+      books: {
+        Row: BookRow;
+        Insert: Partial<BookRow> & { order_id: string };
+        Update: Partial<BookRow>;
+        Relationships: [];
+      };
+    };
+    Views: Record<string, never>;
+    Functions: Record<string, never>;
+    Enums: Record<string, never>;
+    CompositeTypes: Record<string, never>;
+  };
+};
