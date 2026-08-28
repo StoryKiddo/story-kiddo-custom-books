@@ -1,0 +1,226 @@
+-- Story Kiddo Custom Books — initial database schema
+--
+-- Run this in the Supabase SQL editor (or via the Supabase CLI) to create:
+--   customers  people placing orders (usually a parent / guardian)
+--   tracks     the 8 educational book themes
+--   orders     one personalization request (child + photo + chosen track)
+--   books      the generated storybook that belongs to an order
+--
+-- Also creates a private Storage bucket for child photos.
+-- Keep the track slugs in sync with `src/lib/tracks.ts`.
+
+-- ---------------------------------------------------------------------------
+-- Tables
+-- ---------------------------------------------------------------------------
+
+-- A customer is whoever is ordering the book. Email is optional in this
+-- first version because the create form only collects the child's details.
+create table if not exists public.customers (
+  id uuid primary key default gen_random_uuid(),
+  email text unique,
+  created_at timestamptz not null default now()
+);
+
+comment on table public.customers is
+  'People who order books. Email is optional until accounts / checkout are added.';
+
+-- Educational themes a family can choose for their child's book.
+create table if not exists public.tracks (
+  id uuid primary key default gen_random_uuid(),
+  slug text not null unique,
+  name text not null,
+  tagline text not null,
+  description text not null,
+  age_range text not null,
+  cover text not null,
+  ink text not null,
+  sort_order integer not null default 0,
+  created_at timestamptz not null default now()
+);
+
+comment on table public.tracks is
+  'Catalog of educational book tracks (alphabet, numbers, etc.).';
+
+-- One order = one child + one track + one photo, waiting to become a book.
+create table if not exists public.orders (
+  id uuid primary key default gen_random_uuid(),
+  customer_id uuid not null references public.customers (id) on delete restrict,
+  track_id uuid not null references public.tracks (id) on delete restrict,
+  child_name text not null,
+  child_age integer not null check (child_age >= 0 and child_age <= 12),
+  photo_path text,
+  status text not null default 'received'
+    check (status in ('received', 'generating', 'ready', 'failed')),
+  created_at timestamptz not null default now()
+);
+
+comment on table public.orders is
+  'A personalization request: child name/age, photo, and chosen educational track.';
+comment on column public.orders.photo_path is
+  'Object path inside the child-photos Storage bucket, not a public URL.';
+comment on column public.orders.status is
+  'received = form submitted; generating = AI in progress; ready = book is done.';
+
+-- The storybook produced from an order. Illustration generation will fill
+-- this in later; for now we insert a pending stub when the order is placed.
+create table if not exists public.books (
+  id uuid primary key default gen_random_uuid(),
+  order_id uuid not null unique references public.orders (id) on delete cascade,
+  title text,
+  status text not null default 'pending'
+    check (status in ('pending', 'generating', 'complete', 'failed')),
+  page_count integer,
+  created_at timestamptz not null default now()
+);
+
+comment on table public.books is
+  'The generated storybook that belongs to an order. AI generation is not wired up yet.';
+
+create index if not exists orders_customer_id_idx on public.orders (customer_id);
+create index if not exists orders_track_id_idx on public.orders (track_id);
+create index if not exists books_order_id_idx on public.books (order_id);
+
+-- ---------------------------------------------------------------------------
+-- Row Level Security
+--
+-- The Next.js server uses the service role key, which bypasses RLS.
+-- These policies still matter: they keep the public anon key from reading
+-- customer photos or orders. Tracks are the only public table.
+-- ---------------------------------------------------------------------------
+
+alter table public.customers enable row level security;
+alter table public.tracks enable row level security;
+alter table public.orders enable row level security;
+alter table public.books enable row level security;
+
+drop policy if exists "Public can read tracks" on public.tracks;
+create policy "Public can read tracks"
+  on public.tracks
+  for select
+  to anon, authenticated
+  using (true);
+
+-- No policies on customers / orders / books → only the service role can access them.
+
+-- ---------------------------------------------------------------------------
+-- Seed the eight educational tracks (stable UUIDs so they never reshuffle)
+-- ---------------------------------------------------------------------------
+
+insert into public.tracks (
+  id, slug, name, tagline, description, age_range, cover, ink, sort_order
+) values
+  (
+    'a1111111-1111-4111-8111-111111111111',
+    'alphabet',
+    'Alphabet',
+    'Letter adventures from A to Z',
+    'A playful story that introduces letters through characters, sounds, and words your child already loves.',
+    'Ages 2–6',
+    '#f6c9b8',
+    '#b55b3e',
+    1
+  ),
+  (
+    'a1111111-1111-4111-8111-111111111112',
+    'numbers',
+    'Numbers',
+    'Counting through a day of play',
+    'Follow a day of play that weaves in counting, comparing, and everyday number sense — one page at a time.',
+    'Ages 2–6',
+    '#c5dce8',
+    '#3d7a8c',
+    2
+  ),
+  (
+    'a1111111-1111-4111-8111-111111111113',
+    'colors-shapes',
+    'Colors & Shapes',
+    'Circles, squares, and a world of color',
+    'Hunt for colors and shapes in a story world built around your child — red circles, blue triangles, and more.',
+    'Ages 2–5',
+    '#e3d2f0',
+    '#7a4ea3',
+    3
+  ),
+  (
+    'a1111111-1111-4111-8111-111111111114',
+    'emotions',
+    'Emotions',
+    'Big feelings, gentle words',
+    'Name happy, sad, frustrated, and proud in a story that helps your child see feelings as something they can understand.',
+    'Ages 3–8',
+    '#f5d0d8',
+    '#b14b63',
+    4
+  ),
+  (
+    'a1111111-1111-4111-8111-111111111115',
+    'kindness-values',
+    'Kindness & Values',
+    'Sharing, helping, and being a good friend',
+    'Small acts of kindness — sharing, helping, telling the truth — told as an adventure starring your child.',
+    'Ages 3–8',
+    '#cfe5d4',
+    '#3f7a52',
+    5
+  ),
+  (
+    'a1111111-1111-4111-8111-111111111116',
+    'life-milestones',
+    'Life Milestones',
+    'Potty training, first day of school, and other big firsts',
+    'A reassuring story for a big first: potty training, starting school, a new sibling, or sleeping in their own bed.',
+    'Ages 2–7',
+    '#f3ddb0',
+    '#b07a1f',
+    6
+  ),
+  (
+    'a1111111-1111-4111-8111-111111111117',
+    'animals-nature',
+    'Animals & Nature',
+    'Backyard bugs, forest friends, and curious creatures',
+    'Wander through gardens, woods, and shorelines meeting animals — and picking up a little nature knowledge along the way.',
+    'Ages 2–8',
+    '#d4e4c4',
+    '#4f7340',
+    7
+  ),
+  (
+    'a1111111-1111-4111-8111-111111111118',
+    'manners',
+    'Manners',
+    'Please, thank you, and kind hellos',
+    'Practice please, thank you, taking turns, and kind hellos in a story that makes manners feel like a superpower.',
+    'Ages 3–7',
+    '#d5e0f2',
+    '#3d5a8a',
+    8
+  )
+on conflict (slug) do update set
+  name = excluded.name,
+  tagline = excluded.tagline,
+  description = excluded.description,
+  age_range = excluded.age_range,
+  cover = excluded.cover,
+  ink = excluded.ink,
+  sort_order = excluded.sort_order;
+
+-- ---------------------------------------------------------------------------
+-- Storage: private bucket for child photos
+-- ---------------------------------------------------------------------------
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'child-photos',
+  'child-photos',
+  false,
+  8388608,
+  array['image/jpeg', 'image/png', 'image/webp', 'image/jpg']
+)
+on conflict (id) do nothing;
+
+-- Photos are private. The service role uploads them from the Next.js server.
+-- No storage policies are added for anon/authenticated, so the public API
+-- cannot list or download objects in this bucket.
+alter table storage.objects enable row level security;
