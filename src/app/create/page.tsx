@@ -25,18 +25,18 @@ export default async function CreatePage({
   }
 
   return (
-    <div className="mx-auto grid w-full max-w-6xl gap-10 px-5 py-14 lg:grid-cols-[0.9fr_1.1fr]">
+    <div className="mx-auto grid w-full max-w-6xl gap-8 px-5 py-12 sm:py-16 lg:grid-cols-[0.9fr_1.1fr] lg:gap-10">
       <aside
-        className="h-fit rounded-[28px] p-6 shadow-[3px_3px_0_0_rgba(43,36,28,0.12)]"
+        className="h-fit rounded-[28px] p-6 shadow-[0_12px_28px_-16px_rgba(36,28,22,0.2)] sm:p-7"
         style={{ background: track.cover }}
       >
-        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-ink/70">
+        <p className="text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-ink/70 sm:text-xs">
           Step 2 of 2
         </p>
         <div className="mt-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-white/60">
           <TrackIcon slug={track.slug} ink={track.ink} />
         </div>
-        <h1 className="mt-4 font-display text-3xl text-ink">{track.name}</h1>
+        <h1 className="mt-4 font-display text-3xl tracking-tight text-ink">{track.name}</h1>
         <p className="mt-2 text-ink/80">{track.description}</p>
         <p className="mt-4 text-sm font-semibold text-ink-soft">{track.ageRange}</p>
         <Link
@@ -47,7 +47,7 @@ export default async function CreatePage({
         </Link>
       </aside>
 
-      <section className="rounded-[28px] border border-rule bg-white/70 p-6 sm:p-8">
+      <section className="rounded-[28px] border border-rule bg-cream/80 p-6 sm:p-8">
         <h2 className="text-2xl text-ink">Tell us about your child</h2>
         <p className="mt-2 mb-8 text-ink-soft">
           We&apos;ll use this to personalize the story. Illustration generation

@@ -9,7 +9,7 @@ export default function NotFound() {
       </p>
       <Link
         href="/tracks"
-        className="rounded-full bg-coral px-6 py-3 text-sm font-semibold text-white shadow-[2px_2px_0_0_#b54e35]"
+        className="rounded-full bg-coral px-6 py-3 text-sm font-semibold text-white shadow-[0_1px_0_rgba(255,255,255,0.2)_inset,0_10px_20px_-8px_rgba(181,78,53,0.7)]"
       >
         Browse tracks
       </Link>

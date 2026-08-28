@@ -1,25 +1,29 @@
 @import "tailwindcss";
 
-/* Brand tokens: warm paper, storybook ink, and a few cover-like pastels. */
+/* Brand tokens: warm ivory paper, espresso ink, coral as the single loud accent. */
 :root {
-  --paper: #fbf4ea;
-  --paper-deep: #f3e6d4;
-  --ink: #2b241c;
-  --ink-soft: #5c5348;
+  --paper: #f6eee2;
+  --paper-deep: #eadcc8;
+  --cream: #fffaf4;
+  --ink: #241c16;
+  --ink-soft: #6a5d51;
   --coral: #d96b4f;
   --coral-dark: #b54e35;
-  --sage: #5e8f70;
-  --rule: rgba(43, 36, 28, 0.12);
+  --sage: #5a7d62;
+  --gold: #c4a06a;
+  --rule: rgba(36, 28, 22, 0.1);
 }
 
 @theme inline {
   --color-paper: var(--paper);
   --color-paper-deep: var(--paper-deep);
+  --color-cream: var(--cream);
   --color-ink: var(--ink);
   --color-ink-soft: var(--ink-soft);
   --color-coral: var(--coral);
   --color-coral-dark: var(--coral-dark);
   --color-sage: var(--sage);
+  --color-gold: var(--gold);
   --color-rule: var(--rule);
   --font-sans: var(--font-nunito);
   --font-display: var(--font-fraunces);
@@ -33,12 +37,12 @@ body {
   background-color: var(--paper);
   color: var(--ink);
   font-family: var(--font-nunito), ui-sans-serif, system-ui, sans-serif;
-  /* Soft paper grain so the page feels like a printed book, not a blank canvas. */
-  background-image:
-    radial-gradient(ellipse at top left, rgba(232, 184, 109, 0.22), transparent 42%),
-    radial-gradient(ellipse at top right, rgba(126, 184, 196, 0.16), transparent 36%),
-    radial-gradient(circle at 20% 80%, rgba(207, 229, 212, 0.35), transparent 28%);
   min-height: 100%;
+  /* Warm wash only — no mint/teal blobs that read as a generic template. */
+  background-image:
+    radial-gradient(ellipse 90% 55% at 8% -8%, rgba(217, 107, 79, 0.13), transparent 52%),
+    radial-gradient(ellipse 70% 45% at 100% 0%, rgba(196, 160, 106, 0.16), transparent 48%),
+    radial-gradient(ellipse 50% 35% at 70% 100%, rgba(90, 125, 98, 0.07), transparent 50%);
 }
 
 h1,
@@ -46,9 +50,35 @@ h2,
 h3,
 .font-display {
   font-family: var(--font-fraunces), ui-serif, Georgia, serif;
+  font-optical-sizing: auto;
 }
 
 ::selection {
-  background: #f3ddb0;
+  background: #ead7a8;
   color: var(--ink);
+}
+
+.track-cover {
+  transition:
+    transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.35s ease,
+    border-color 0.2s ease;
+}
+
+@media (hover: hover) {
+  .track-cover:hover {
+    transform: translateY(-10px) scale(1.02);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.55) inset,
+      0 18px 28px -10px rgba(36, 28, 22, 0.22),
+      0 8px 12px -8px rgba(36, 28, 22, 0.16);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .track-cover,
+  .track-cover:hover {
+    transform: none;
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+  }
 }

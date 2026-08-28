@@ -36,7 +36,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${display.variable} ${sans.variable} h-full antialiased`}
+      className={`${display.variable} ${sans.variable} h-full scroll-smooth antialiased`}
     >
       <body className="flex min-h-full flex-col">
         <SiteHeader />

@@ -19,18 +19,20 @@ export function TrackCard({ track, href, selected, onSelect }: TrackCardProps) {
     <>
       <span
         aria-hidden="true"
-        className="absolute inset-y-0 left-0 w-2.5 rounded-l-[18px]"
+        className="absolute inset-y-0 left-0 w-2.5 rounded-l-[22px]"
         style={{ background: track.ink }}
       />
-      <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/55">
+      <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/55 transition-transform duration-300 ease-out motion-safe:group-hover:scale-105">
         <TrackIcon slug={track.slug} ink={track.ink} />
       </span>
-      <span className="mt-auto space-y-1 pl-1">
+      <span className="mt-auto space-y-1.5 pl-1">
         <span className="block font-display text-xl leading-tight text-ink">
           {track.name}
         </span>
-        <span className="block text-sm leading-snug text-ink/80">{track.tagline}</span>
-        <span className="mt-2 inline-block rounded-full bg-white/70 px-2 py-0.5 text-xs font-semibold text-ink-soft">
+        <span className="block text-sm leading-relaxed text-ink/80">
+          {track.tagline}
+        </span>
+        <span className="mt-2.5 inline-block rounded-full bg-white/70 px-2.5 py-0.5 text-xs font-semibold text-ink-soft">
           {track.ageRange}
         </span>
       </span>
@@ -38,10 +40,12 @@ export function TrackCard({ track, href, selected, onSelect }: TrackCardProps) {
   );
 
   const className = [
-    "relative flex min-h-[230px] flex-col gap-4 rounded-[20px] border-2 p-5 pl-7 text-left shadow-[3px_3px_0_0_rgba(43,36,28,0.12)] transition",
+    "track-cover group relative flex min-h-[260px] flex-col gap-5 rounded-[22px] border-2 p-6 pl-8 text-left",
+    "shadow-[0_1px_0_rgba(255,255,255,0.45)_inset,0_8px_18px_-10px_rgba(36,28,22,0.14)]",
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/30",
     selected
       ? "border-ink ring-2 ring-ink/20"
-      : "border-transparent hover:-translate-y-0.5 hover:border-ink/20",
+      : "border-transparent hover:border-ink/20",
   ].join(" ");
 
   if (href) {

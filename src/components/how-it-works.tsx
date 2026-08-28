@@ -24,15 +24,15 @@ const STEPS = [
 
 export function HowItWorks() {
   return (
-    <ol className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <ol className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
       {STEPS.map((step) => (
         <li
           key={step.n}
-          className="rounded-3xl border border-rule bg-white/70 p-5 shadow-[2px_2px_0_0_rgba(43,36,28,0.06)]"
+          className="rounded-3xl border border-rule bg-cream/80 p-6 sm:p-7 shadow-[0_10px_24px_-16px_rgba(36,28,22,0.18)]"
         >
           <span className="font-display text-3xl text-coral">{step.n}</span>
-          <h3 className="mt-2 text-lg text-ink">{step.title}</h3>
-          <p className="mt-1 text-sm leading-relaxed text-ink-soft">{step.body}</p>
+          <h3 className="mt-3 text-lg text-ink">{step.title}</h3>
+          <p className="mt-2 text-sm leading-relaxed text-ink-soft">{step.body}</p>
         </li>
       ))}
     </ol>
