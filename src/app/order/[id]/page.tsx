@@ -19,11 +19,11 @@ export default async function OrderPage({
   }
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-5 py-16">
-      <p className="text-sm font-semibold uppercase tracking-[0.18em] text-sage">
+    <div className="mx-auto w-full max-w-3xl px-5 py-12 sm:py-16">
+      <p className="text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-sage sm:text-xs">
         Order received
       </p>
-      <h1 className="mt-3 text-4xl text-ink">{order.bookTitle}</h1>
+      <h1 className="mt-3 text-[2.15rem] leading-[1.12] tracking-[-0.03em] text-ink sm:text-5xl">{order.bookTitle}</h1>
       <p className="mt-3 text-lg text-ink-soft">
         {order.childName}, age {order.childAge}, is the star of this{" "}
         {order.track.name.toLowerCase()} story.
@@ -46,7 +46,7 @@ export default async function OrderPage({
       </div>
 
       {order.isDemo ? (
-        <p className="mt-8 rounded-2xl border border-rule bg-white/70 px-5 py-4 text-sm text-ink-soft">
+        <p className="mt-8 rounded-2xl border border-rule bg-cream/80 px-5 py-4 text-sm text-ink-soft">
           This order was not saved to Supabase. Add the keys from{" "}
           <code className="rounded bg-paper-deep px-1.5 py-0.5 text-ink">.env.example</code>{" "}
           to <code className="rounded bg-paper-deep px-1.5 py-0.5 text-ink">.env.local</code>{" "}
@@ -63,13 +63,13 @@ export default async function OrderPage({
       <div className="mt-10 flex flex-wrap gap-3">
         <Link
           href="/tracks"
-          className="rounded-full bg-coral px-6 py-3 text-sm font-semibold text-white shadow-[2px_2px_0_0_#b54e35] transition hover:bg-coral-dark"
+          className="rounded-full bg-coral px-6 py-3 text-sm font-semibold text-white shadow-[0_1px_0_rgba(255,255,255,0.2)_inset,0_10px_20px_-8px_rgba(181,78,53,0.7)] transition hover:bg-coral-dark"
         >
           Create another book
         </Link>
         <Link
           href="/"
-          className="rounded-full border border-ink/15 bg-white/70 px-6 py-3 text-sm font-semibold text-ink"
+          className="rounded-full border border-ink/12 bg-cream/80 px-6 py-3 text-sm font-semibold text-ink"
         >
           Back home
         </Link>

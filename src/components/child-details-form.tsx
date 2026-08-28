@@ -53,7 +53,7 @@ export function ChildDetailsForm({ track }: { track: Track }) {
             maxLength={40}
             autoComplete="given-name"
             placeholder="Maya"
-            className="w-full rounded-2xl border border-rule bg-white px-4 py-3 text-ink outline-none ring-coral/30 focus:ring-2"
+            className="w-full rounded-2xl border border-rule bg-cream px-4 py-3 text-ink outline-none ring-coral/30 focus:ring-2"
           />
         </label>
 
@@ -66,7 +66,7 @@ export function ChildDetailsForm({ track }: { track: Track }) {
             min={0}
             max={12}
             placeholder="4"
-            className="w-full rounded-2xl border border-rule bg-white px-4 py-3 text-ink outline-none ring-coral/30 focus:ring-2"
+            className="w-full rounded-2xl border border-rule bg-cream px-4 py-3 text-ink outline-none ring-coral/30 focus:ring-2"
           />
           <span className="block text-xs text-ink-soft">
             Whole years, from 0 to 12. {track.ageRange} is the sweet spot for this track.
@@ -104,7 +104,7 @@ export function ChildDetailsForm({ track }: { track: Track }) {
             fileInputRef.current.files = transfer.files;
             onPhotoChange(file);
           }}
-          className="flex w-full flex-col items-center justify-center gap-3 rounded-3xl border-2 border-dashed border-ink/20 bg-white/70 px-6 py-10 text-center transition hover:border-coral hover:bg-white"
+          className="flex w-full flex-col items-center justify-center gap-3 rounded-3xl border-2 border-dashed border-ink/20 bg-cream/70 px-6 py-10 text-center transition hover:border-coral hover:bg-cream"
         >
           {previewUrl ? (
             // Preview is a blob URL created in the browser, not a remote image.
@@ -112,7 +112,7 @@ export function ChildDetailsForm({ track }: { track: Track }) {
             <img
               src={previewUrl}
               alt="Preview of the uploaded photo"
-              className="h-40 w-40 rounded-3xl object-cover shadow-[3px_3px_0_0_rgba(43,36,28,0.12)]"
+              className="h-40 w-40 rounded-3xl object-cover shadow-[0_12px_24px_-12px_rgba(36,28,22,0.28)]"
             />
           ) : (
             <span className="flex h-16 w-16 items-center justify-center rounded-full bg-paper-deep text-2xl text-ink-soft">
@@ -134,7 +134,7 @@ export function ChildDetailsForm({ track }: { track: Track }) {
       <button
         type="submit"
         disabled={pending}
-        className="rounded-full bg-coral px-8 py-3 text-sm font-semibold text-white shadow-[3px_3px_0_0_#b54e35] transition hover:bg-coral-dark disabled:cursor-wait disabled:opacity-70"
+        className="rounded-full bg-coral px-8 py-3 text-sm font-semibold text-white shadow-[0_1px_0_rgba(255,255,255,0.2)_inset,0_10px_20px_-8px_rgba(181,78,53,0.7)] transition hover:bg-coral-dark disabled:cursor-wait disabled:opacity-70"
       >
         {pending ? "Saving your book…" : "Create this book"}
       </button>
