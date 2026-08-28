@@ -24,11 +24,11 @@ const STEPS = [
 
 export function HowItWorks() {
   return (
-    <ol className="grid gap-5 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4">
+    <ol className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
       {STEPS.map((step) => (
         <li
           key={step.n}
-          className="rounded-3xl border border-rule bg-cream/80 p-6 shadow-[0_10px_24px_-16px_rgba(36,28,22,0.18)]"
+          className="rounded-3xl border border-rule bg-cream/80 p-6 sm:p-7 shadow-[0_10px_24px_-16px_rgba(36,28,22,0.18)]"
         >
           <span className="font-display text-3xl text-coral">{step.n}</span>
           <h3 className="mt-3 text-lg text-ink">{step.title}</h3>

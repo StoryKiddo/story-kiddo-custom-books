@@ -58,9 +58,27 @@ h3,
   color: var(--ink);
 }
 
+.track-cover {
+  transition:
+    transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.35s ease,
+    border-color 0.2s ease;
+}
+
+@media (hover: hover) {
+  .track-cover:hover {
+    transform: translateY(-10px) scale(1.02);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.55) inset,
+      0 18px 28px -10px rgba(36, 28, 22, 0.22),
+      0 8px 12px -8px rgba(36, 28, 22, 0.16);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .track-cover,
   .track-cover:hover {
     transform: none;
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
   }
 }

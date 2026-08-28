@@ -12,7 +12,8 @@ export default function HomePage() {
         <HeroBackdrop />
         <div className="relative mx-auto grid w-full max-w-6xl items-center gap-12 px-5 py-16 sm:py-20 lg:grid-cols-[1.15fr_0.85fr] lg:gap-16 lg:py-28">
           <div className="space-y-7 sm:space-y-8">
-            <p className="text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-sage sm:text-xs">
+            <p className="flex items-center gap-3 text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-sage sm:text-xs">
+              <span className="hidden h-px w-8 bg-gold/80 sm:block" aria-hidden="true" />
               Story Kiddo Custom Books
             </p>
             <h1 className="max-w-xl text-[2.55rem] leading-[1.06] tracking-[-0.03em] text-ink sm:text-6xl lg:max-w-none lg:text-[4.35rem]">
@@ -76,7 +77,7 @@ export default function HomePage() {
             See all tracks
           </Link>
         </div>
-        <div className="grid gap-5 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4">
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4 lg:gap-7">
           {TRACKS.map((track) => (
             <TrackCard key={track.slug} track={track} href="/tracks" />
           ))}

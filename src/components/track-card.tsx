@@ -40,14 +40,12 @@ export function TrackCard({ track, href, selected, onSelect }: TrackCardProps) {
   );
 
   const className = [
-    "track-cover group relative flex min-h-[252px] flex-col gap-5 rounded-[22px] border-2 p-6 pl-8 text-left",
-    "shadow-[0_1px_0_rgba(255,255,255,0.45)_inset,0_10px_22px_-12px_rgba(36,28,22,0.18)]",
-    "transition-[transform,box-shadow,border-color] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
-    "motion-safe:hover:-translate-y-1.5 motion-safe:hover:shadow-[0_1px_0_rgba(255,255,255,0.5)_inset,0_20px_36px_-14px_rgba(36,28,22,0.22)]",
+    "track-cover group relative flex min-h-[260px] flex-col gap-5 rounded-[22px] border-2 p-6 pl-8 text-left",
+    "shadow-[0_1px_0_rgba(255,255,255,0.45)_inset,0_8px_18px_-10px_rgba(36,28,22,0.14)]",
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/30",
     selected
       ? "border-ink ring-2 ring-ink/20"
-      : "border-transparent hover:border-ink/15",
+      : "border-transparent hover:border-ink/20",
   ].join(" ");
 
   if (href) {

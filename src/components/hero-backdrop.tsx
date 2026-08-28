@@ -13,7 +13,7 @@ export function HeroBackdrop() {
       <div className="absolute bottom-0 left-1/3 h-40 w-[28rem] -translate-x-1/2 rounded-full bg-sage/[0.08] blur-3xl" />
 
       <svg
-        className="absolute left-[-8%] top-[12%] h-[420px] w-[420px] text-ink/[0.045]"
+        className="absolute left-[-8%] top-[12%] h-[420px] w-[420px] text-ink/[0.06]"
         viewBox="0 0 420 280"
         fill="none"
       >
@@ -31,7 +31,7 @@ export function HeroBackdrop() {
         fill="none"
         preserveAspectRatio="xMidYMid slice"
       >
-        <g opacity="0.55">
+        <g opacity="0.72">
           <path
             d="M140 92l4.2 8.8 9.8 1.2-7.2 6.8 1.9 9.6L140 114l-8.7 4.4 1.9-9.6-7.2-6.8 9.8-1.2Z"
             fill="currentColor"

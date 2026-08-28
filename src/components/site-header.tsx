@@ -13,7 +13,7 @@ export function SiteHeader() {
       <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-5 py-3.5 sm:gap-6 sm:py-4">
         <Link
           href="/"
-          className="flex items-center gap-2.5 no-underline"
+          className="flex shrink-0 items-center gap-2.5 no-underline"
           aria-label="Story Kiddo home"
         >
           <SiteLogo subtitle />

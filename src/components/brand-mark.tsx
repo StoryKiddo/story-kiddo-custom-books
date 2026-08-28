@@ -39,7 +39,7 @@ export function SiteLogo({
     <>
       <BrandMark />
       <span className="flex flex-col justify-center leading-none">
-        <span className="font-display text-[1.2rem] tracking-[-0.03em] text-ink">
+        <span className="font-display text-[1.2rem] tracking-[-0.03em] text-ink whitespace-nowrap">
           Story Kiddo
         </span>
         {subtitle ? (
