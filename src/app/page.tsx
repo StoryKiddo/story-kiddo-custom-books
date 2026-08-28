@@ -24,16 +24,16 @@ export default function HomePage() {
               </span>
             </h1>
             <p className="max-w-lg text-base leading-relaxed text-ink-soft sm:text-lg">
-              Choose an educational track, add a photo, and we&apos;ll create a
+              Choose an educational theme, add a photo, and we&apos;ll create a
               personalized illustrated book — for letters, numbers, feelings,
               first days, and the values you want to grow.
             </p>
             <div className="flex flex-wrap gap-3 pt-1">
               <Link
-                href="/tracks"
+                href="/themes"
                 className="rounded-full bg-coral px-6 py-3 text-sm font-semibold text-white shadow-[0_1px_0_rgba(255,255,255,0.2)_inset,0_10px_20px_-8px_rgba(181,78,53,0.7)] transition hover:bg-coral-dark sm:px-7 sm:py-3.5"
               >
-                Choose a track
+                Choose a theme
               </Link>
               <Link
                 href="#how-it-works"
@@ -63,23 +63,23 @@ export default function HomePage() {
         <div className="mb-8 flex items-end justify-between gap-4 sm:mb-10">
           <div>
             <h2 className="text-3xl tracking-tight text-ink sm:text-4xl">
-              Eight educational tracks
+              Eight educational themes
             </h2>
             <p className="mt-3 max-w-xl text-ink-soft">
-              Each track is a different kind of story. Pick the one that matches
+              Each theme is a different kind of story. Pick the one that matches
               what your child is learning right now.
             </p>
           </div>
           <Link
-            href="/tracks"
+            href="/themes"
             className="hidden shrink-0 text-sm font-semibold text-coral underline decoration-coral/40 underline-offset-4 sm:inline"
           >
-            See all tracks
+            See all themes
           </Link>
         </div>
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4 lg:gap-7">
           {TRACKS.map((track) => (
-            <TrackCard key={track.slug} track={track} href="/tracks" />
+            <TrackCard key={track.slug} track={track} href="/themes" />
           ))}
         </div>
       </section>

@@ -2,7 +2,7 @@
 const STEPS = [
   {
     n: "1",
-    title: "Choose a track",
+    title: "Choose a theme",
     body: "Pick the lesson you want the story to carry — letters, numbers, feelings, first days, and more.",
   },
   {

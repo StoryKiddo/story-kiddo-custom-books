@@ -11,7 +11,7 @@ type TrackCardProps = {
 };
 
 /**
- * A little picture-book cover. Used both as a button (on /tracks) and as a
+ * A little picture-book cover. Used both as a button (on /themes) and as a
  * link (on the homepage). The left edge is a darker "spine".
  */
 export function TrackCard({ track, href, selected, onSelect }: TrackCardProps) {

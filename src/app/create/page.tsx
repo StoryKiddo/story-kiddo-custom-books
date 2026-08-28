@@ -16,7 +16,7 @@ export default async function CreatePage({
 }) {
   const { track: slug } = await searchParams;
   if (!slug) {
-    redirect("/tracks");
+    redirect("/themes");
   }
 
   const track = getTrackBySlug(slug);
@@ -40,10 +40,10 @@ export default async function CreatePage({
         <p className="mt-2 text-ink/80">{track.description}</p>
         <p className="mt-4 text-sm font-semibold text-ink-soft">{track.ageRange}</p>
         <Link
-          href="/tracks"
+          href="/themes"
           className="mt-6 inline-block text-sm font-semibold text-ink underline underline-offset-4"
         >
-          Choose a different track
+          Choose a different theme
         </Link>
       </aside>
 

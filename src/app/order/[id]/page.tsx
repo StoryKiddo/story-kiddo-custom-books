@@ -62,7 +62,7 @@ export default async function OrderPage({
 
       <div className="mt-10 flex flex-wrap gap-3">
         <Link
-          href="/tracks"
+          href="/themes"
           className="rounded-full bg-coral px-6 py-3 text-sm font-semibold text-white shadow-[0_1px_0_rgba(255,255,255,0.2)_inset,0_10px_20px_-8px_rgba(181,78,53,0.7)] transition hover:bg-coral-dark"
         >
           Create another book

@@ -69,7 +69,7 @@ export function ChildDetailsForm({ track }: { track: Track }) {
             className="w-full rounded-2xl border border-rule bg-cream px-4 py-3 text-ink outline-none ring-coral/30 focus:ring-2"
           />
           <span className="block text-xs text-ink-soft">
-            Whole years, from 0 to 12. {track.ageRange} is the sweet spot for this track.
+            Whole years, from 0 to 12. {track.ageRange} is the sweet spot for this theme.
           </span>
         </label>
       </div>
