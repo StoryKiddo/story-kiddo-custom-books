@@ -38,7 +38,7 @@ export function TrackPicker({ tracks }: { tracks: Track[] }) {
               {selected.tagline}.
             </>
           ) : (
-            "Select a track to personalize a book."
+            "Select a theme to personalize a book."
           )}
         </p>
         <button

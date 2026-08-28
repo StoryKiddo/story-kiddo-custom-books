@@ -3,7 +3,7 @@ import { SiteLogo } from "@/components/brand-mark";
 
 const NAV = [
   { href: "/", label: "Home" },
-  { href: "/tracks", label: "Tracks" },
+  { href: "/themes", label: "Themes" },
 ];
 
 /** Top bar used on every page. Kept as a Server Component — no client JS. */
@@ -31,7 +31,7 @@ export function SiteHeader() {
             </Link>
           ))}
           <Link
-            href="/tracks"
+            href="/themes"
             className="ml-1 rounded-full bg-coral px-3.5 py-1.5 text-white shadow-[0_1px_0_rgba(255,255,255,0.2)_inset,0_8px_16px_-8px_rgba(181,78,53,0.7)] transition hover:bg-coral-dark sm:ml-2 sm:px-4"
           >
             <span className="sm:hidden">Create</span>

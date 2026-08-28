@@ -42,7 +42,7 @@ export async function createOrder(
 
   const track = getTrackBySlug(trackSlug);
   if (!track) {
-    return { error: "Please choose an educational track before continuing." };
+    return { error: "Please choose an educational theme before continuing." };
   }
 
   if (childName.length < 1 || childName.length > 40) {
@@ -91,7 +91,7 @@ export async function createOrder(
   if (trackError || !trackRow) {
     return {
       error:
-        "We couldn't find that track in the database. Run the SQL in supabase/migrations/ on your project.",
+        "We couldn't find that theme in the database. Run the SQL in supabase/migrations/ on your project.",
     };
   }
 
