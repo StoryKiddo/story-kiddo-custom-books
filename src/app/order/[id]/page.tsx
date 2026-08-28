@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { TrackIcon } from "@/components/track-icon";
-import { getOrderSummary } from "@/lib/orders";
+import { formatStarsLine, getOrderSummary } from "@/lib/orders";
 
 export default async function OrderPage({
   params,
@@ -25,8 +25,7 @@ export default async function OrderPage({
       </p>
       <h1 className="mt-3 text-[2.15rem] leading-[1.12] tracking-[-0.03em] text-ink sm:text-5xl">{order.bookTitle}</h1>
       <p className="mt-3 text-lg text-ink-soft">
-        {order.childName}, age {order.childAge}, is the star of this{" "}
-        {order.track.name.toLowerCase()} story.
+        {formatStarsLine(order.children, order.track.name)}
       </p>
 
       <div

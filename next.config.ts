@@ -1,11 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Photo uploads travel through a Server Action. The default 1MB cap is too
-  // small for a typical phone picture, so we raise it here.
+  // Photo uploads travel through a Server Action. Up to four children × 8 MB
+  // each, so we raise the default 1MB cap here.
   experimental: {
     serverActions: {
-      bodySizeLimit: "10mb",
+      bodySizeLimit: "36mb",
     },
   },
   async redirects() {

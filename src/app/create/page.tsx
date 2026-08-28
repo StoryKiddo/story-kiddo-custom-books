@@ -50,8 +50,9 @@ export default async function CreatePage({
       <section className="rounded-[28px] border border-rule bg-cream/80 p-6 sm:p-8">
         <h2 className="text-2xl text-ink">Tell us about your child</h2>
         <p className="mt-2 mb-8 text-ink-soft">
-          We&apos;ll use this to personalize the story. Illustration generation
-          is not wired up yet — this step saves the order.
+          We&apos;ll use this to personalize the story. You can include up to
+          four children in the same book. Illustration generation is not wired
+          up yet — this step saves the order.
         </p>
         <ChildDetailsForm track={track} />
       </section>

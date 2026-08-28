@@ -1,10 +1,11 @@
 -- Story Kiddo Custom Books — initial database schema
 --
 -- Run this in the Supabase SQL editor (or via the Supabase CLI) to create:
---   customers  people placing orders (usually a parent / guardian)
---   tracks     the 8 educational book themes
---   orders     one personalization request (child + photo + chosen track)
---   books      the generated storybook that belongs to an order
+--   customers      people placing orders (usually a parent / guardian)
+--   tracks         the 8 educational book themes
+--   orders         one personalization request (chosen track)
+--   book_children  1–4 children starring in an order
+--   books          the generated storybook that belongs to an order
 --
 -- Also creates a private Storage bucket for child photos.
 -- Keep the track slugs in sync with `src/lib/tracks.ts`.
@@ -41,13 +42,13 @@ create table if not exists public.tracks (
 comment on table public.tracks is
   'Catalog of educational book tracks (alphabet, numbers, etc.).';
 
--- One order = one child + one track + one photo, waiting to become a book.
+-- One order = one track + 1–4 children (see book_children), waiting to become a book.
 create table if not exists public.orders (
   id uuid primary key default gen_random_uuid(),
   customer_id uuid not null references public.customers (id) on delete restrict,
   track_id uuid not null references public.tracks (id) on delete restrict,
-  child_name text not null,
-  child_age integer not null check (child_age >= 0 and child_age <= 12),
+  child_name text,
+  child_age integer check (child_age is null or (child_age >= 0 and child_age <= 12)),
   photo_path text,
   status text not null default 'received'
     check (status in ('received', 'generating', 'ready', 'failed')),
@@ -55,11 +56,29 @@ create table if not exists public.orders (
 );
 
 comment on table public.orders is
-  'A personalization request: child name/age, photo, and chosen educational track.';
+  'A personalization request: chosen educational track, plus 1–4 children in book_children.';
+comment on column public.orders.child_name is
+  'Legacy single-child name. New orders store children in book_children.';
 comment on column public.orders.photo_path is
-  'Object path inside the child-photos Storage bucket, not a public URL.';
+  'Legacy photo path. New orders store photos on book_children.';
 comment on column public.orders.status is
   'received = form submitted; generating = AI in progress; ready = book is done.';
+
+-- Children starring in a book. One order can have 1–4 rows.
+create table if not exists public.book_children (
+  id uuid primary key default gen_random_uuid(),
+  order_id uuid not null references public.orders (id) on delete cascade,
+  child_name text not null,
+  child_age integer not null check (child_age >= 0 and child_age <= 12),
+  photo_path text,
+  sort_order integer not null default 0,
+  created_at timestamptz not null default now()
+);
+
+comment on table public.book_children is
+  'Children starring in a book order. One order can have 1–4 rows.';
+comment on column public.book_children.photo_path is
+  'Object path inside the child-photos Storage bucket, not a public URL.';
 
 -- The storybook produced from an order. Illustration generation will fill
 -- this in later; for now we insert a pending stub when the order is placed.
@@ -79,6 +98,9 @@ comment on table public.books is
 create index if not exists orders_customer_id_idx on public.orders (customer_id);
 create index if not exists orders_track_id_idx on public.orders (track_id);
 create index if not exists books_order_id_idx on public.books (order_id);
+create index if not exists book_children_order_id_idx on public.book_children (order_id);
+create unique index if not exists book_children_order_sort_idx
+  on public.book_children (order_id, sort_order);
 
 -- ---------------------------------------------------------------------------
 -- Row Level Security
@@ -92,6 +114,7 @@ alter table public.customers enable row level security;
 alter table public.tracks enable row level security;
 alter table public.orders enable row level security;
 alter table public.books enable row level security;
+alter table public.book_children enable row level security;
 
 drop policy if exists "Public can read tracks" on public.tracks;
 create policy "Public can read tracks"
@@ -100,7 +123,7 @@ create policy "Public can read tracks"
   to anon, authenticated
   using (true);
 
--- No policies on customers / orders / books → only the service role can access them.
+-- No policies on customers / orders / books / book_children → only the service role can access them.
 
 -- ---------------------------------------------------------------------------
 -- Seed the eight educational tracks (stable UUIDs so they never reshuffle)
