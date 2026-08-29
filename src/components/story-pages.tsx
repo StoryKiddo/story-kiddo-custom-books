@@ -12,7 +12,9 @@ export function StoryPages({ pages }: { pages: string[] }) {
             <p className="text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-sage">
               Page {index + 1}
             </p>
-            <p className="mt-3 font-display text-xl leading-relaxed text-ink">{page}</p>
+            <p className="mt-3 font-display text-xl leading-relaxed whitespace-pre-line text-ink">
+              {page}
+            </p>
           </li>
         ))}
       </ol>
