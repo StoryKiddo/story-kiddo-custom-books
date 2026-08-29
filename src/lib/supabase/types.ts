@@ -31,10 +31,21 @@ export type OrderRow = {
   id: string;
   customer_id: string;
   track_id: string;
+  /** Legacy single-child fields. New orders store children in book_children. */
+  child_name: string | null;
+  child_age: number | null;
+  photo_path: string | null;
+  status: OrderStatus;
+  created_at: string;
+};
+
+export type BookChildRow = {
+  id: string;
+  order_id: string;
   child_name: string;
   child_age: number;
   photo_path: string | null;
-  status: OrderStatus;
+  sort_order: number;
   created_at: string;
 };
 
@@ -71,10 +82,18 @@ export type Database = {
         Insert: Partial<OrderRow> & {
           customer_id: string;
           track_id: string;
+        };
+        Update: Partial<OrderRow>;
+        Relationships: [];
+      };
+      book_children: {
+        Row: BookChildRow;
+        Insert: Partial<BookChildRow> & {
+          order_id: string;
           child_name: string;
           child_age: number;
         };
-        Update: Partial<OrderRow>;
+        Update: Partial<BookChildRow>;
         Relationships: [];
       };
       books: {
