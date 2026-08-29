@@ -16,7 +16,7 @@ export default async function CreatePage({
 }) {
   const { track: slug } = await searchParams;
   if (!slug) {
-    redirect("/tracks");
+    redirect("/themes");
   }
 
   const track = getTrackBySlug(slug);
@@ -40,18 +40,19 @@ export default async function CreatePage({
         <p className="mt-2 text-ink/80">{track.description}</p>
         <p className="mt-4 text-sm font-semibold text-ink-soft">{track.ageRange}</p>
         <Link
-          href="/tracks"
+          href="/themes"
           className="mt-6 inline-block text-sm font-semibold text-ink underline underline-offset-4"
         >
-          Choose a different track
+          Choose a different theme
         </Link>
       </aside>
 
       <section className="rounded-[28px] border border-rule bg-cream/80 p-6 sm:p-8">
         <h2 className="text-2xl text-ink">Tell us about your child</h2>
         <p className="mt-2 mb-8 text-ink-soft">
-          We&apos;ll use this to personalize the story. Illustration generation
-          is not wired up yet — this step saves the order.
+          We&apos;ll use this to personalize the story. You can include up to
+          four children in the same book. Illustration generation is not wired
+          up yet — this step saves the order.
         </p>
         <ChildDetailsForm track={track} />
       </section>

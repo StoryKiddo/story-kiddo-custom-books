@@ -16,10 +16,10 @@ export function SiteFooter() {
           <p>Stories that grow with your child.</p>
           <p>
             <Link
-              href="/tracks"
+              href="/themes"
               className="underline decoration-coral/50 underline-offset-4 hover:text-ink"
             >
-              Browse educational tracks
+              Browse educational themes
             </Link>
           </p>
         </div>
