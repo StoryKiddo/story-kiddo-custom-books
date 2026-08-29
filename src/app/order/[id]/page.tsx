@@ -1,8 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { RefreshWhileGenerating } from "@/components/refresh-while-generating";
 import { TrackIcon } from "@/components/track-icon";
 import { StoryPages } from "@/components/story-pages";
 import { formatStarsLine, getOrderSummary } from "@/lib/orders";
+
+export const dynamic = "force-dynamic";
 
 export default async function OrderPage({
   params,
@@ -61,9 +64,12 @@ export default async function OrderPage({
           yet. Please try creating the book again in a moment.
         </p>
       ) : (
-        <p className="mt-8 rounded-2xl border border-rule bg-cream/80 px-5 py-4 text-sm text-ink-soft">
-          Your story is being written&hellip;
-        </p>
+        <>
+          {order.bookStatus === "generating" ? <RefreshWhileGenerating /> : null}
+          <p className="mt-8 rounded-2xl border border-rule bg-cream/80 px-5 py-4 text-sm text-ink-soft">
+            Your story is being written&hellip;
+          </p>
+        </>
       )}
 
       <div className="mt-10 flex flex-wrap gap-3">

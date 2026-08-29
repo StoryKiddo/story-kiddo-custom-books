@@ -11,6 +11,12 @@ const STORY_MODEL = "claude-sonnet-4-5";
 const MIN_PAGES = 8;
 const MAX_PAGES = 12;
 
+const SYSTEM_PROMPT = `You write personalized picture-book text for Story Kiddo Custom Books.
+Write warm, age-appropriate, positive read-aloud stories.
+No scares, no violence, no brand names, no mention of AI.
+Use each child's real name exactly as given.
+Match the educational theme in a playful way — never a lecture.`;
+
 export type StoryChild = {
   name: string;
   age: number;
@@ -42,9 +48,7 @@ function buildPrompt(track: Track, children: StoryChild[]): string {
       ? `Include every named child as a character in the same story. They share the adventure together — none of them is left out.`
       : `The named child is the star of every page.`;
 
-  return `You write personalized picture-book text for Story Kiddo Custom Books.
-
-Educational theme: ${track.name}
+  return `Educational theme: ${track.name}
 Theme focus: ${track.description}
 
 Children starring in this book: ${stars}
@@ -52,14 +56,18 @@ Write for a read-aloud audience around age ${youngestAge(children)}.
 
 ${together}
 
-Write a warm, age-appropriate, positive short story of ${MIN_PAGES} to ${MAX_PAGES} pages.
+Write a short story of ${MIN_PAGES} to ${MAX_PAGES} pages.
 Each page is 2 to 5 short sentences a parent can read aloud.
-Match the educational focus of the theme in a playful way — not a lecture.
-No scares, no violence, no brand names, no mention of AI.
-Use the children's real names exactly as given.
 
-Return ONLY valid JSON: an array of strings, one string per page.
-Example: ["First page text.","Second page text."]`;
+Return JSON with a "pages" array of strings, one string per page.`;
+}
+
+function asPageList(value: unknown): string[] | null {
+  if (!Array.isArray(value)) return null;
+  const pages = value
+    .map((page) => (typeof page === "string" ? page.trim() : ""))
+    .filter((page) => page.length > 0);
+  return pages.length > 0 ? pages.slice(0, MAX_PAGES) : null;
 }
 
 function parsePages(raw: string): string[] {
@@ -70,14 +78,13 @@ function parsePages(raw: string): string[] {
 
   try {
     const parsed: unknown = JSON.parse(trimmed);
-    if (Array.isArray(parsed)) {
-      const pages = parsed
-        .map((page) => (typeof page === "string" ? page.trim() : ""))
-        .filter((page) => page.length > 0);
-      if (pages.length > 0) {
-        return pages.slice(0, MAX_PAGES);
-      }
-    }
+    const fromObject =
+      parsed && typeof parsed === "object" && !Array.isArray(parsed)
+        ? asPageList((parsed as { pages?: unknown }).pages)
+        : null;
+    const fromArray = asPageList(parsed);
+    const pages = fromObject ?? fromArray;
+    if (pages) return pages;
   } catch {
     // Fall through to paragraph splitting.
   }
@@ -107,7 +114,26 @@ export async function generateStoryPages(
   const message = await client.messages.create({
     model: STORY_MODEL,
     max_tokens: 4096,
+    system: SYSTEM_PROMPT,
     messages: [{ role: "user", content: buildPrompt(track, children) }],
+    output_config: {
+      format: {
+        type: "json_schema",
+        schema: {
+          type: "object",
+          properties: {
+            pages: {
+              type: "array",
+              items: { type: "string" },
+              minItems: MIN_PAGES,
+              maxItems: MAX_PAGES,
+            },
+          },
+          required: ["pages"],
+          additionalProperties: false,
+        },
+      },
+    },
   });
 
   const text = message.content
