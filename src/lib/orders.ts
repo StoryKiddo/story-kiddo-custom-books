@@ -5,6 +5,7 @@
 
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { getTrackBySlug, type Track } from "@/lib/tracks";
+import type { BookStatus } from "@/lib/supabase/types";
 
 export const MAX_CHILDREN_PER_BOOK = 4;
 
@@ -20,7 +21,15 @@ export type OrderSummary = {
   isDemo: boolean;
   bookTitle: string;
   status: string;
+  bookStatus: BookStatus;
+  pages: string[] | null;
 };
+
+function asPages(value: unknown): string[] | null {
+  if (!Array.isArray(value)) return null;
+  const pages = value.filter((page): page is string => typeof page === "string" && page.trim().length > 0);
+  return pages.length > 0 ? pages : null;
+}
 
 function allValues(value: string | string[] | undefined): string[] {
   if (value == null) return [];
@@ -75,6 +84,8 @@ export async function getOrderSummary(
       isDemo: true,
       bookTitle: formatBookTitle(children, track.name),
       status: "received",
+      bookStatus: "pending",
+      pages: null,
     };
   }
 
@@ -113,12 +124,23 @@ export async function getOrderSummary(
 
   if (children.length === 0) return null;
 
+  const { data: book } = await supabase
+    .from("books")
+    .select("status, pages, title")
+    .eq("order_id", order.id)
+    .maybeSingle();
+
+  const pages = asPages(book?.pages);
+  const bookStatus: BookStatus = book?.status ?? "pending";
+
   return {
     id: order.id,
     children,
     track,
     isDemo: false,
-    bookTitle: formatBookTitle(children, track.name),
+    bookTitle: book?.title || formatBookTitle(children, track.name),
     status: order.status,
+    bookStatus,
+    pages,
   };
 }

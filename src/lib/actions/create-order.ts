@@ -11,6 +11,7 @@
 import { randomUUID } from "node:crypto";
 import { redirect } from "next/navigation";
 import { formatBookTitle, MAX_CHILDREN_PER_BOOK } from "@/lib/orders";
+import { generateStoryPages, isAnthropicConfigured } from "@/lib/generate-story";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { getTrackBySlug } from "@/lib/tracks";
@@ -186,18 +187,41 @@ export async function createOrder(
     return { error: "The order was created, but we couldn't save the children. Please try again." };
   }
 
-  // Stub book row — illustration generation will update this later.
-  const { error: bookError } = await supabase.from("books").insert({
+  // Stub book row — story text is filled in next when Anthropic is configured.
+  const { data: book, error: bookError } = await supabase.from("books").insert({
     order_id: order.id,
     title: formatBookTitle(
       uploaded.map((child) => ({ name: child.name, age: child.age })),
       track.name,
     ),
     status: "pending",
-  });
+  }).select("id").single();
 
-  if (bookError) {
+  if (bookError || !book) {
     return { error: "The order was created, but we couldn't start the book yet. Please contact us." };
+  }
+
+  if (isAnthropicConfigured()) {
+    const storyChildren = uploaded.map((child) => ({ name: child.name, age: child.age }));
+    await supabase.from("books").update({ status: "generating" }).eq("id", book.id);
+
+    try {
+      const pages = await generateStoryPages(track, storyChildren);
+      const { error: storyError } = await supabase
+        .from("books")
+        .update({
+          status: "complete",
+          pages,
+          page_count: pages.length,
+        })
+        .eq("id", book.id);
+
+      if (storyError) {
+        await supabase.from("books").update({ status: "failed" }).eq("id", book.id);
+      }
+    } catch {
+      await supabase.from("books").update({ status: "failed" }).eq("id", book.id);
+    }
   }
 
   redirect(`/order/${order.id}`);

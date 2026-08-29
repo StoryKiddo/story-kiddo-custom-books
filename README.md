@@ -9,9 +9,9 @@ This first version covers the **frontend flow** and the **database structure**. 
 1. Land on a simple homepage.
 2. Choose one of eight educational tracks (alphabet, numbers, colors/shapes, emotions, kindness/values, life milestones, animals/nature, manners).
 3. Upload a photo and enter each child's name and age (up to four children per book).
-4. See an order confirmation.
+4. See an order confirmation — and, when Anthropic is configured, a generated story.
 
-If Supabase keys are missing, the same flow still works in **demo mode** (nothing is saved). With keys configured, the app writes `customers`, `orders`, `book_children`, and `books` rows and stores photos in a private bucket.
+If Supabase keys are missing, the same flow still works in **demo mode** (nothing is saved, and no story is generated). With Supabase configured, the app writes `customers`, `orders`, `book_children`, and `books` rows and stores photos in a private bucket. With `ANTHROPIC_API_KEY` set, it also writes story pages onto the book.
 
 ## Run locally
 
@@ -28,6 +28,7 @@ Open [http://localhost:3000](http://localhost:3000).
 1. Create a project at [supabase.com](https://supabase.com).
 2. In the SQL editor, run the files in `supabase/migrations/` in order. They create the tables (including `book_children` for 1–4 children per order), seed the tracks, and add a private `child-photos` storage bucket.
 3. Copy **Project URL**, **anon key**, and **service role key** from Project Settings → API into `.env.local`.
+4. Optional: add `ANTHROPIC_API_KEY` from the [Anthropic console](https://console.anthropic.com/) so story text is generated after checkout.
 
 The service role key is used only on the server (see `src/lib/supabase/admin.ts`) so photo uploads and order inserts can bypass Row Level Security. Do not prefix it with `NEXT_PUBLIC_`.
 
