@@ -111,30 +111,39 @@ export async function generateStoryPages(
   }
 
   const client = new Anthropic({ apiKey });
-  const message = await client.messages.create({
+  const request = {
     model: STORY_MODEL,
     max_tokens: 4096,
     system: SYSTEM_PROMPT,
-    messages: [{ role: "user", content: buildPrompt(track, children) }],
-    output_config: {
-      format: {
-        type: "json_schema",
-        schema: {
-          type: "object",
-          properties: {
-            pages: {
-              type: "array",
-              items: { type: "string" },
-              minItems: MIN_PAGES,
-              maxItems: MAX_PAGES,
-            },
-          },
-          required: ["pages"],
-          additionalProperties: false,
+    messages: [{ role: "user" as const, content: buildPrompt(track, children) }],
+  };
+  const structuredFormat = {
+    type: "json_schema" as const,
+    schema: {
+      type: "object",
+      properties: {
+        pages: {
+          type: "array",
+          items: { type: "string" },
+          minItems: MIN_PAGES,
+          maxItems: MAX_PAGES,
         },
       },
+      required: ["pages"],
+      additionalProperties: false,
     },
-  });
+  };
+
+  let message;
+  try {
+    message = await client.messages.create({
+      ...request,
+      output_config: { format: structuredFormat },
+    });
+  } catch (error) {
+    console.error("Structured story request failed, retrying without schema", error);
+    message = await client.messages.create(request);
+  }
 
   const text = message.content
     .filter((block) => block.type === "text")
