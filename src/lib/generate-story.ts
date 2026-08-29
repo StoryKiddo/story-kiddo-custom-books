@@ -7,11 +7,11 @@ import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import type { Track } from "@/lib/tracks";
 import {
-  MAX_STORY_PAGES,
-  MIN_STORY_PAGES,
   STORY_SYSTEM_PROMPT,
   buildStoryPrompt,
+  isAlphabetTheme,
   parseStoryPages,
+  storyPageBounds,
   type StoryChild,
 } from "@/lib/story-prompt";
 
@@ -37,10 +37,11 @@ export async function generateStoryPages(
     throw new Error("ANTHROPIC_API_KEY is not configured.");
   }
 
+  const bounds = storyPageBounds(track);
   const client = new Anthropic({ apiKey });
   const request = {
     model: STORY_MODEL,
-    max_tokens: 4096,
+    max_tokens: isAlphabetTheme(track) ? 8192 : 4096,
     system: STORY_SYSTEM_PROMPT,
     messages: [{ role: "user" as const, content: buildStoryPrompt(track, children) }],
   };
@@ -52,8 +53,8 @@ export async function generateStoryPages(
         pages: {
           type: "array",
           items: { type: "string" },
-          minItems: MIN_STORY_PAGES,
-          maxItems: MAX_STORY_PAGES,
+          minItems: bounds.min,
+          maxItems: bounds.max,
         },
       },
       required: ["pages"],
@@ -82,5 +83,5 @@ export async function generateStoryPages(
     throw new Error("The story model returned no text.");
   }
 
-  return parseStoryPages(text);
+  return parseStoryPages(text, bounds);
 }

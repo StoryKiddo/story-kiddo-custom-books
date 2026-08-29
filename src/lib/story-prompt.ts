@@ -7,6 +7,27 @@ import type { Track } from "@/lib/tracks";
 
 export const MIN_STORY_PAGES = 8;
 export const MAX_STORY_PAGES = 12;
+export const ALPHABET_PAGE_COUNT = 26;
+export const ALPHABET_LETTERS = [
+  "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M",
+  "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z",
+] as const;
+
+export type StoryPageBounds = {
+  min: number;
+  max: number;
+};
+
+export function isAlphabetTheme(track: { slug: string }): boolean {
+  return track.slug === "alphabet";
+}
+
+export function storyPageBounds(track: { slug: string }): StoryPageBounds {
+  if (isAlphabetTheme(track)) {
+    return { min: ALPHABET_PAGE_COUNT, max: ALPHABET_PAGE_COUNT };
+  }
+  return { min: MIN_STORY_PAGES, max: MAX_STORY_PAGES };
+}
 
 export type StoryChild = {
   name: string;
@@ -95,28 +116,51 @@ Rhyme and rhythm:
 - Put each line on its own newline inside that page's string.
 - End rhymes should be obvious when spoken (day/play, cat/hat). Skip a rhyme rather than twist the story into nonsense.
 
-Write a short story of ${MIN_STORY_PAGES} to ${MAX_STORY_PAGES} pages.
+${pageCountGuidance(track)}
 
 Return JSON with a "pages" array of strings, one string per page.`;
 }
 
-export function parseStoryPages(raw: string): string[] {
+function pageCountGuidance(track: Track): string {
+  if (isAlphabetTheme(track)) {
+    const letters = ALPHABET_LETTERS.join(", ");
+    return `This is an Alphabet book. Write EXACTLY ${ALPHABET_PAGE_COUNT} pages — one page per letter, in order from A to Z.
+- Page 1 is A, page 2 is B, page 3 is C, … page 26 is Z.
+- Cover every letter: ${letters}.
+- Do not skip a letter, merge two letters onto one page, or stop early (do not end at J or anywhere before Z).
+- On each page, show that page's letter clearly (for example "A is for ant") plus a simple word that starts with it, starring the child.
+- Keep the rhyme and youngest-age complexity rules on every letter page.`;
+  }
+
+  return `Write a short story of ${MIN_STORY_PAGES} to ${MAX_STORY_PAGES} pages.`;
+}
+
+export function parseStoryPages(
+  raw: string,
+  bounds: StoryPageBounds = { min: MIN_STORY_PAGES, max: MAX_STORY_PAGES },
+): string[] {
   const trimmed = raw
     .trim()
     .replace(/^```(?:json)?\s*/i, "")
     .replace(/\s*```$/, "");
 
+  let parsed: unknown;
   try {
-    const parsed: unknown = JSON.parse(trimmed);
+    parsed = JSON.parse(trimmed);
+  } catch {
+    parsed = undefined;
+  }
+
+  if (parsed !== undefined) {
     const fromObject =
       parsed && typeof parsed === "object" && !Array.isArray(parsed)
-        ? asPageList((parsed as { pages?: unknown }).pages)
+        ? asPageList((parsed as { pages?: unknown }).pages, bounds.max)
         : null;
-    const fromArray = asPageList(parsed);
+    const fromArray = asPageList(parsed, bounds.max);
     const pages = fromObject ?? fromArray;
-    if (pages) return pages;
-  } catch {
-    // Fall through to paragraph splitting.
+    if (pages) {
+      return finalizePages(pages, bounds);
+    }
   }
 
   const pages = trimmed
@@ -124,17 +168,43 @@ export function parseStoryPages(raw: string): string[] {
     .map((page) => page.replace(/^\s*\d+[.)]\s*/, "").trim())
     .filter((page) => page.length > 0);
 
-  if (pages.length === 0) {
-    throw new Error("The story model returned empty text.");
-  }
-
-  return pages.slice(0, MAX_STORY_PAGES);
+  return finalizePages(pages, bounds);
 }
 
-function asPageList(value: unknown): string[] | null {
+function finalizePages(pages: string[], bounds: StoryPageBounds): string[] {
+  const clipped = pages.slice(0, bounds.max);
+  if (clipped.length < bounds.min) {
+    throw new Error(
+      `The story model returned ${clipped.length} pages; expected at least ${bounds.min}.`,
+    );
+  }
+  return clipped;
+}
+
+function asPageList(value: unknown, maxPages: number): string[] | null {
   if (!Array.isArray(value)) return null;
   const pages = value
     .map((page) => (typeof page === "string" ? page.trim() : ""))
     .filter((page) => page.length > 0);
-  return pages.length > 0 ? pages.slice(0, MAX_STORY_PAGES) : null;
+  return pages.length > 0 ? pages.slice(0, maxPages) : null;
+}
+
+/** Letters that are missing or not clearly featured on their page (A=page 1). */
+export function missingAlphabetLetters(pages: string[]): string[] {
+  const missing: string[] = [];
+  for (let i = 0; i < ALPHABET_PAGE_COUNT; i++) {
+    const letter = ALPHABET_LETTERS[i];
+    const page = pages[i];
+    if (!page || !pageHighlightsLetter(page, letter)) {
+      missing.push(letter);
+    }
+  }
+  return missing;
+}
+
+function pageHighlightsLetter(page: string, letter: string): boolean {
+  const escaped = letter.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const asOwnWord = new RegExp(`(?:^|[^A-Za-z])${escaped}(?:[^A-Za-z]|$)`, "i");
+  const isFor = new RegExp(`(?:^|\\n)\\s*${escaped}\\s+is\\s+for\\b`, "i");
+  return asOwnWord.test(page) || isFor.test(page);
 }
