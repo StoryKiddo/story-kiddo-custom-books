@@ -1,7 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { RefreshWhileGenerating } from "@/components/refresh-while-generating";
 import { TrackIcon } from "@/components/track-icon";
+import { StoryPages } from "@/components/story-pages";
 import { formatStarsLine, getOrderSummary } from "@/lib/orders";
+
+export const dynamic = "force-dynamic";
 
 export default async function OrderPage({
   params,
@@ -52,11 +56,20 @@ export default async function OrderPage({
           and run the SQL in <code className="rounded bg-paper-deep px-1.5 py-0.5 text-ink">supabase/migrations/</code>{" "}
           to store customers, orders, photos, and books.
         </p>
-      ) : (
-        <p className="mt-8 text-sm text-ink-soft">
-          We saved this order and a pending book. Illustrated pages are not
-          generated yet — that comes in a later step.
+      ) : order.bookStatus === "complete" && order.pages ? (
+        <StoryPages pages={order.pages} />
+      ) : order.bookStatus === "failed" ? (
+        <p className="mt-8 rounded-2xl border border-rule bg-cream/80 px-5 py-4 text-sm text-ink-soft">
+          We saved your order, but we couldn&apos;t finish writing the story just
+          yet. Please try creating the book again in a moment.
         </p>
+      ) : (
+        <>
+          {order.bookStatus === "generating" ? <RefreshWhileGenerating /> : null}
+          <p className="mt-8 rounded-2xl border border-rule bg-cream/80 px-5 py-4 text-sm text-ink-soft">
+            Your story is being written&hellip;
+          </p>
+        </>
       )}
 
       <div className="mt-10 flex flex-wrap gap-3">

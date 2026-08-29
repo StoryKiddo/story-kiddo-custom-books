@@ -55,6 +55,7 @@ export type BookRow = {
   title: string | null;
   status: BookStatus;
   page_count: number | null;
+  pages: string[] | null;
   created_at: string;
 };
 

@@ -9,11 +9,13 @@
 "use server";
 
 import { randomUUID } from "node:crypto";
+import { after } from "next/server";
 import { redirect } from "next/navigation";
 import { formatBookTitle, MAX_CHILDREN_PER_BOOK } from "@/lib/orders";
+import { generateStoryPages, isAnthropicConfigured } from "@/lib/generate-story";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
-import { getTrackBySlug } from "@/lib/tracks";
+import { getTrackBySlug, type Track } from "@/lib/tracks";
 
 export type CreateOrderState = {
   error?: string;
@@ -186,19 +188,56 @@ export async function createOrder(
     return { error: "The order was created, but we couldn't save the children. Please try again." };
   }
 
-  // Stub book row — illustration generation will update this later.
-  const { error: bookError } = await supabase.from("books").insert({
+  // Stub book row — story text is filled in after redirect when Anthropic is configured.
+  const { data: book, error: bookError } = await supabase.from("books").insert({
     order_id: order.id,
     title: formatBookTitle(
       uploaded.map((child) => ({ name: child.name, age: child.age })),
       track.name,
     ),
     status: "pending",
-  });
+  }).select("id").single();
 
-  if (bookError) {
+  if (bookError || !book) {
     return { error: "The order was created, but we couldn't start the book yet. Please contact us." };
   }
 
+  if (isAnthropicConfigured()) {
+    await supabase.from("books").update({ status: "generating" }).eq("id", book.id);
+    const storyChildren = uploaded.map((child) => ({ name: child.name, age: child.age }));
+    scheduleStoryGeneration(book.id, track, storyChildren);
+  }
+
   redirect(`/order/${order.id}`);
+}
+
+function scheduleStoryGeneration(
+  bookId: string,
+  track: Track,
+  children: { name: string; age: number }[],
+) {
+  after(async () => {
+    const admin = createAdminSupabaseClient();
+    if (!admin) return;
+
+    try {
+      const pages = await generateStoryPages(track, children);
+      const { error: storyError } = await admin
+        .from("books")
+        .update({
+          status: "complete",
+          pages,
+          page_count: pages.length,
+        })
+        .eq("id", bookId);
+
+      if (storyError) {
+        console.error("Failed to save generated story", storyError);
+        await admin.from("books").update({ status: "failed" }).eq("id", bookId);
+      }
+    } catch (error) {
+      console.error("Story generation failed", error);
+      await admin.from("books").update({ status: "failed" }).eq("id", bookId);
+    }
+  });
 }
