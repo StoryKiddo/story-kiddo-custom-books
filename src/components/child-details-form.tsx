@@ -3,24 +3,22 @@
 /**
  * Collects name, age, and photo for 1–4 children in one book order.
  *
- * Photo previews stay in the browser (URL.createObjectURL). The actual files
- * are sent to the `createOrder` Server Action on submit, which uploads them
- * to Supabase Storage when credentials are configured.
+ * Each photo is cropped in the browser first. The cropped file is what the
+ * `createOrder` Server Action receives and uploads to Supabase Storage.
  */
 
-import { useActionState, useEffect, useRef, useState } from "react";
+import { useActionState, useState } from "react";
+import { PhotoCropField } from "@/components/photo-crop-field";
 import { createOrder, type CreateOrderState } from "@/lib/actions/create-order";
 import { MAX_CHILDREN_PER_BOOK } from "@/lib/orders";
 import type { Track } from "@/lib/tracks";
 
 type ChildDraft = {
   id: string;
-  previewUrl: string | null;
-  fileName: string | null;
 };
 
 function emptyChild(id: string): ChildDraft {
-  return { id, previewUrl: null, fileName: null };
+  return { id };
 }
 
 export function ChildDetailsForm({ track }: { track: Track }) {
@@ -31,33 +29,6 @@ export function ChildDetailsForm({ track }: { track: Track }) {
   const [children, setChildren] = useState<ChildDraft[]>([emptyChild("1")]);
   const [nextId, setNextId] = useState(2);
 
-  useEffect(() => {
-    return () => {
-      for (const child of children) {
-        if (child.previewUrl) URL.revokeObjectURL(child.previewUrl);
-      }
-    };
-    // Revoke leftover blob URLs only on unmount.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  function onPhotoChange(id: string, file: File | undefined) {
-    setChildren((current) =>
-      current.map((child) => {
-        if (child.id !== id) return child;
-        if (child.previewUrl) URL.revokeObjectURL(child.previewUrl);
-        if (!file) {
-          return { ...child, previewUrl: null, fileName: null };
-        }
-        return {
-          ...child,
-          fileName: file.name,
-          previewUrl: URL.createObjectURL(file),
-        };
-      }),
-    );
-  }
-
   function addChild() {
     if (children.length >= MAX_CHILDREN_PER_BOOK) return;
     setChildren((current) => [...current, emptyChild(String(nextId))]);
@@ -66,11 +37,7 @@ export function ChildDetailsForm({ track }: { track: Track }) {
 
   function removeChild(id: string) {
     if (children.length <= 1) return;
-    setChildren((current) => {
-      const target = current.find((child) => child.id === id);
-      if (target?.previewUrl) URL.revokeObjectURL(target.previewUrl);
-      return current.filter((child) => child.id !== id);
-    });
+    setChildren((current) => current.filter((child) => child.id !== id));
   }
 
   return (
@@ -86,7 +53,6 @@ export function ChildDetailsForm({ track }: { track: Track }) {
             total={children.length}
             track={track}
             pending={pending}
-            onPhotoChange={(file) => onPhotoChange(child.id, file)}
             onRemove={() => removeChild(child.id)}
           />
         ))}
@@ -128,7 +94,6 @@ function ChildCard({
   total,
   track,
   pending,
-  onPhotoChange,
   onRemove,
 }: {
   child: ChildDraft;
@@ -136,11 +101,8 @@ function ChildCard({
   total: number;
   track: Track;
   pending: boolean;
-  onPhotoChange: (file: File | undefined) => void;
   onRemove: () => void;
 }) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const photoId = `photo-${child.id}`;
   const headingId = `child-heading-${child.id}`;
   const label = total === 1 ? "Your child" : `Child ${index + 1}`;
 
@@ -198,57 +160,7 @@ function ChildCard({
         </label>
       </div>
 
-      <div className="mt-6 space-y-2">
-        <label htmlFor={photoId} className="text-sm font-semibold text-ink">
-          Photo of your child
-        </label>
-        <p className="text-sm text-ink-soft">
-          A clear face photo works best. JPG, PNG, or WebP, up to 8 MB.
-        </p>
-        <input
-          id={photoId}
-          ref={inputRef}
-          name="photo"
-          type="file"
-          accept="image/jpeg,image/png,image/webp"
-          required
-          className="sr-only"
-          onChange={(event) => onPhotoChange(event.target.files?.[0])}
-        />
-        <button
-          type="button"
-          onClick={() => inputRef.current?.click()}
-          onDragOver={(event) => event.preventDefault()}
-          onDrop={(event) => {
-            event.preventDefault();
-            const file = event.dataTransfer.files?.[0];
-            if (!file || !inputRef.current) return;
-            const transfer = new DataTransfer();
-            transfer.items.add(file);
-            inputRef.current.files = transfer.files;
-            onPhotoChange(file);
-          }}
-          className="flex w-full flex-col items-center justify-center gap-3 rounded-3xl border-2 border-dashed border-ink/20 bg-cream/70 px-6 py-10 text-center transition hover:border-coral hover:bg-cream"
-        >
-          {child.previewUrl ? (
-            // Preview is a blob URL created in the browser, not a remote image.
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={child.previewUrl}
-              alt={`Preview of the uploaded photo for ${label.toLowerCase()}`}
-              className="h-40 w-40 rounded-3xl object-cover shadow-[0_12px_24px_-12px_rgba(36,28,22,0.28)]"
-            />
-          ) : (
-            <span className="flex h-16 w-16 items-center justify-center rounded-full bg-paper-deep text-2xl text-ink-soft">
-              +
-            </span>
-          )}
-          <span className="text-sm font-semibold text-ink">
-            {child.fileName ? child.fileName : "Drop a photo here, or click to browse"}
-          </span>
-        </button>
-      </div>
+      <PhotoCropField id={child.id} label={label} pending={pending} />
     </fieldset>
   );
 }
-
