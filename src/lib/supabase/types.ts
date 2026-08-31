@@ -6,7 +6,7 @@
  * for this first foundation.
  */
 export type OrderStatus = "received" | "generating" | "ready" | "failed";
-export type BookStatus = "pending" | "generating" | "complete" | "failed";
+export type BookStatus = "pending" | "generating" | "illustrating" | "complete" | "failed";
 
 export type CustomerRow = {
   id: string;
@@ -56,6 +56,7 @@ export type BookRow = {
   status: BookStatus;
   page_count: number | null;
   pages: string[] | null;
+  illustrations: (string | null)[] | null;
   created_at: string;
 };
 

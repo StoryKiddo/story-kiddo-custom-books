@@ -13,6 +13,10 @@ import { after } from "next/server";
 import { redirect } from "next/navigation";
 import { formatBookTitle, MAX_CHILDREN_PER_BOOK } from "@/lib/orders";
 import { generateStoryPages, isAnthropicConfigured } from "@/lib/generate-story";
+import {
+  illustrateBook,
+  isOpenAIConfigured,
+} from "@/lib/generate-illustrations";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { getTrackBySlug, type Track } from "@/lib/tracks";
@@ -204,8 +208,7 @@ export async function createOrder(
 
   if (isAnthropicConfigured()) {
     await supabase.from("books").update({ status: "generating" }).eq("id", book.id);
-    const storyChildren = uploaded.map((child) => ({ name: child.name, age: child.age }));
-    scheduleStoryGeneration(book.id, track, storyChildren);
+    scheduleStoryGeneration(book.id, track, uploaded);
   }
 
   redirect(`/order/${order.id}`);
@@ -214,18 +217,22 @@ export async function createOrder(
 function scheduleStoryGeneration(
   bookId: string,
   track: Track,
-  children: { name: string; age: number }[],
+  children: { name: string; age: number; photoPath: string }[],
 ) {
   after(async () => {
     const admin = createAdminSupabaseClient();
     if (!admin) return;
 
     try {
-      const pages = await generateStoryPages(track, children);
+      const pages = await generateStoryPages(
+        track,
+        children.map((child) => ({ name: child.name, age: child.age })),
+      );
+      const paintPictures = isOpenAIConfigured();
       const { error: storyError } = await admin
         .from("books")
         .update({
-          status: "complete",
+          status: paintPictures ? "illustrating" : "complete",
           pages,
           page_count: pages.length,
         })
@@ -233,6 +240,29 @@ function scheduleStoryGeneration(
 
       if (storyError) {
         console.error("Failed to save generated story", storyError);
+        await admin.from("books").update({ status: "failed" }).eq("id", bookId);
+        return;
+      }
+
+      if (!paintPictures) return;
+
+      try {
+        const illustrations = await illustrateBook({
+          bookId,
+          track,
+          pages,
+          children,
+        });
+        const anyFailed = illustrations.some((path) => !path);
+        await admin
+          .from("books")
+          .update({
+            illustrations,
+            status: anyFailed ? "failed" : "complete",
+          })
+          .eq("id", bookId);
+      } catch (error) {
+        console.error("Illustration generation failed", error);
         await admin.from("books").update({ status: "failed" }).eq("id", bookId);
       }
     } catch (error) {
