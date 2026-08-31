@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
-/** Reloads the confirmation page until story generation finishes. */
+/** Reloads the confirmation page until story and pictures finish. */
 export function RefreshWhileGenerating() {
   const router = useRouter();
 

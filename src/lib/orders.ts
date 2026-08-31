@@ -23,12 +23,42 @@ export type OrderSummary = {
   status: string;
   bookStatus: BookStatus;
   pages: string[] | null;
+  illustrationUrls: (string | null)[] | null;
 };
 
 function asPages(value: unknown): string[] | null {
   if (!Array.isArray(value)) return null;
   const pages = value.filter((page): page is string => typeof page === "string" && page.trim().length > 0);
   return pages.length > 0 ? pages : null;
+}
+
+function asIllustrationPaths(value: unknown): (string | null)[] | null {
+  if (!Array.isArray(value)) return null;
+  const paths = value.map((entry) =>
+    typeof entry === "string" && entry.trim().length > 0 ? entry : null,
+  );
+  return paths.some((path) => path) ? paths : null;
+}
+
+async function signIllustrationUrls(
+  paths: (string | null)[] | null,
+): Promise<(string | null)[] | null> {
+  if (!paths || paths.length === 0) return paths;
+  const supabase = createAdminSupabaseClient();
+  if (!supabase) return paths.map(() => null);
+
+  const urls: (string | null)[] = [];
+  for (const path of paths) {
+    if (!path) {
+      urls.push(null);
+      continue;
+    }
+    const { data, error } = await supabase.storage
+      .from("book-illustrations")
+      .createSignedUrl(path, 60 * 60);
+    urls.push(error ? null : data?.signedUrl ?? null);
+  }
+  return urls;
 }
 
 function allValues(value: string | string[] | undefined): string[] {
@@ -86,6 +116,7 @@ export async function getOrderSummary(
       status: "received",
       bookStatus: "pending",
       pages: null,
+      illustrationUrls: null,
     };
   }
 
@@ -126,12 +157,13 @@ export async function getOrderSummary(
 
   const { data: book } = await supabase
     .from("books")
-    .select("status, pages, title")
+    .select("status, pages, illustrations, title")
     .eq("order_id", order.id)
     .maybeSingle();
 
   const pages = asPages(book?.pages);
   const bookStatus: BookStatus = book?.status ?? "pending";
+  const illustrationUrls = await signIllustrationUrls(asIllustrationPaths(book?.illustrations));
 
   return {
     id: order.id,
@@ -142,5 +174,6 @@ export async function getOrderSummary(
     status: order.status,
     bookStatus,
     pages,
+    illustrationUrls,
   };
 }

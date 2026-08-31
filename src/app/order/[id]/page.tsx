@@ -22,6 +22,14 @@ export default async function OrderPage({
     notFound();
   }
 
+  const storyPages = order.pages?.map((text, index) => ({
+    text,
+    imageUrl: order.illustrationUrls?.[index] ?? null,
+  }));
+  const illustrating = order.bookStatus === "illustrating";
+  const waitingOnStory =
+    order.bookStatus === "generating" || order.bookStatus === "pending";
+
   return (
     <div className="mx-auto w-full max-w-3xl px-5 py-12 sm:py-16">
       <p className="text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-sage sm:text-xs">
@@ -56,8 +64,17 @@ export default async function OrderPage({
           and run the SQL in <code className="rounded bg-paper-deep px-1.5 py-0.5 text-ink">supabase/migrations/</code>{" "}
           to store customers, orders, photos, and books.
         </p>
-      ) : order.bookStatus === "complete" && order.pages ? (
-        <StoryPages pages={order.pages} />
+      ) : storyPages ? (
+        <>
+          {illustrating || waitingOnStory ? <RefreshWhileGenerating /> : null}
+          {order.bookStatus === "failed" && !order.illustrationUrls?.some(Boolean) ? (
+            <p className="mt-8 rounded-2xl border border-rule bg-cream/80 px-5 py-4 text-sm text-ink-soft">
+              Your story is ready below. We couldn&apos;t finish the pictures just
+              yet — please try creating the book again in a moment.
+            </p>
+          ) : null}
+          <StoryPages pages={storyPages} illustrating={illustrating} />
+        </>
       ) : order.bookStatus === "failed" ? (
         <p className="mt-8 rounded-2xl border border-rule bg-cream/80 px-5 py-4 text-sm text-ink-soft">
           We saved your order, but we couldn&apos;t finish writing the story just
@@ -65,7 +82,7 @@ export default async function OrderPage({
         </p>
       ) : (
         <>
-          {order.bookStatus === "generating" ? <RefreshWhileGenerating /> : null}
+          {waitingOnStory ? <RefreshWhileGenerating /> : null}
           <p className="mt-8 rounded-2xl border border-rule bg-cream/80 px-5 py-4 text-sm text-ink-soft">
             Your story is being written&hellip;
           </p>
