@@ -1,7 +1,8 @@
 "use client";
 
 /**
- * Collects name, age, and photo for 1–4 children in one book order.
+ * Collects name, age, photo, interests, and an optional personal note for
+ * 1–4 children, plus one book-level story type.
  *
  * Each photo is cropped in the browser first. The cropped file is what the
  * `createOrder` Server Action receives and uploads to Supabase Storage.
@@ -11,14 +12,28 @@ import { useActionState, useState } from "react";
 import { PhotoCropField } from "@/components/photo-crop-field";
 import { createOrder, type CreateOrderState } from "@/lib/actions/create-order";
 import { MAX_CHILDREN_PER_BOOK } from "@/lib/orders";
+import {
+  CUSTOM_INTEREST_PLACEHOLDER,
+  DEFAULT_STORY_TYPE,
+  INTERESTS,
+  MAX_CUSTOM_INTEREST_CHARS,
+  MAX_INTERESTS,
+  MAX_PERSONAL_NOTE_CHARS,
+  PERSONAL_NOTE_PLACEHOLDER,
+  STORY_TYPES,
+  type InterestId,
+  type StoryTypeId,
+} from "@/lib/personalization";
 import type { Track } from "@/lib/tracks";
 
 type ChildDraft = {
   id: string;
+  interestIds: InterestId[];
+  showCustomInterest: boolean;
 };
 
 function emptyChild(id: string): ChildDraft {
-  return { id };
+  return { id, interestIds: [], showCustomInterest: false };
 }
 
 export function ChildDetailsForm({ track }: { track: Track }) {
@@ -28,6 +43,7 @@ export function ChildDetailsForm({ track }: { track: Track }) {
   );
   const [children, setChildren] = useState<ChildDraft[]>([emptyChild("1")]);
   const [nextId, setNextId] = useState(2);
+  const [storyType, setStoryType] = useState<StoryTypeId>(DEFAULT_STORY_TYPE);
 
   function addChild() {
     if (children.length >= MAX_CHILDREN_PER_BOOK) return;
@@ -40,9 +56,16 @@ export function ChildDetailsForm({ track }: { track: Track }) {
     setChildren((current) => current.filter((child) => child.id !== id));
   }
 
+  function patchChild(id: string, patch: Partial<ChildDraft>) {
+    setChildren((current) =>
+      current.map((child) => (child.id === id ? { ...child, ...patch } : child)),
+    );
+  }
+
   return (
     <form action={formAction} className="space-y-8">
       <input type="hidden" name="track" value={track.slug} />
+      <input type="hidden" name="storyType" value={storyType} />
 
       <div className="space-y-6">
         {children.map((child, index) => (
@@ -54,6 +77,20 @@ export function ChildDetailsForm({ track }: { track: Track }) {
             track={track}
             pending={pending}
             onRemove={() => removeChild(child.id)}
+            onToggleInterest={(interestId) => {
+              const selected = child.interestIds.includes(interestId);
+              if (selected) {
+                patchChild(child.id, {
+                  interestIds: child.interestIds.filter((id) => id !== interestId),
+                });
+                return;
+              }
+              if (child.interestIds.length >= MAX_INTERESTS) return;
+              patchChild(child.id, { interestIds: [...child.interestIds, interestId] });
+            }}
+            onToggleCustom={() =>
+              patchChild(child.id, { showCustomInterest: !child.showCustomInterest })
+            }
           />
         ))}
       </div>
@@ -70,6 +107,37 @@ export function ChildDetailsForm({ track }: { track: Track }) {
       ) : (
         <p className="text-sm text-ink-soft">Four children is the maximum for one book.</p>
       )}
+
+      <fieldset className="space-y-3">
+        <legend className="font-display text-lg text-ink">What kind of story?</legend>
+        <p className="text-sm text-ink-soft">
+          Pick one style for the whole book. We&apos;ll still write it at the youngest
+          child&apos;s reading level.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {STORY_TYPES.map((type) => {
+            const selected = storyType === type.id;
+            return (
+              <button
+                key={type.id}
+                type="button"
+                onClick={() => setStoryType(type.id)}
+                aria-pressed={selected}
+                disabled={pending}
+                className={[
+                  "rounded-3xl border bg-white/60 p-4 text-left transition",
+                  selected
+                    ? "border-ink ring-2 ring-ink/15"
+                    : "border-rule hover:border-ink/25",
+                ].join(" ")}
+              >
+                <span className="block font-display text-lg text-ink">{type.name}</span>
+                <span className="mt-1 block text-sm text-ink-soft">{type.description}</span>
+              </button>
+            );
+          })}
+        </div>
+      </fieldset>
 
       {state?.error ? (
         <p className="rounded-2xl bg-[#f5d0d8] px-4 py-3 text-sm font-semibold text-[#7a2d3d]" role="alert">
@@ -95,6 +163,8 @@ function ChildCard({
   track,
   pending,
   onRemove,
+  onToggleInterest,
+  onToggleCustom,
 }: {
   child: ChildDraft;
   index: number;
@@ -102,9 +172,12 @@ function ChildCard({
   track: Track;
   pending: boolean;
   onRemove: () => void;
+  onToggleInterest: (id: InterestId) => void;
+  onToggleCustom: () => void;
 }) {
   const headingId = `child-heading-${child.id}`;
   const label = total === 1 ? "Your child" : `Child ${index + 1}`;
+  const atInterestLimit = child.interestIds.length >= MAX_INTERESTS;
 
   return (
     <fieldset
@@ -112,6 +185,10 @@ function ChildCard({
       aria-labelledby={headingId}
       className="rounded-3xl border border-rule bg-white/60 p-5 sm:p-6"
     >
+      {child.interestIds.map((id) => (
+        <input key={id} type="hidden" name={`interests-${index}`} value={id} />
+      ))}
+
       <div className="mb-5 flex items-center justify-between gap-3">
         <h3 id={headingId} className="font-display text-lg text-ink">
           {label}
@@ -136,8 +213,8 @@ function ChildCard({
             required
             maxLength={40}
             autoComplete="given-name"
-            placeholder="Maya"
-            className="w-full rounded-2xl border border-rule bg-cream px-4 py-3 text-ink outline-none ring-coral/30 focus:ring-2"
+            placeholder="Dylan"
+            className="w-full rounded-2xl border border-rule bg-cream px-4 py-3 text-ink outline-none ring-coral/30 placeholder:text-ink-soft focus:ring-2"
           />
         </label>
 
@@ -150,7 +227,7 @@ function ChildCard({
             min={0}
             max={12}
             placeholder="4"
-            className="w-full rounded-2xl border border-rule bg-cream px-4 py-3 text-ink outline-none ring-coral/30 focus:ring-2"
+            className="w-full rounded-2xl border border-rule bg-cream px-4 py-3 text-ink outline-none ring-coral/30 placeholder:text-ink-soft focus:ring-2"
           />
           {index === 0 ? (
             <span className="block text-xs text-ink-soft">
@@ -161,6 +238,79 @@ function ChildCard({
       </div>
 
       <PhotoCropField id={child.id} label={label} pending={pending} />
+
+      <div className="mt-6 space-y-3">
+        <p className="text-sm font-semibold text-ink">What do they love?</p>
+        <p className="text-xs text-ink-soft">
+          Pick up to {MAX_INTERESTS}. We&apos;ll use one as the world of the story — not all of them at once.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {INTERESTS.map((interest) => {
+            const selected = child.interestIds.includes(interest.id);
+            const disabled = pending || (!selected && atInterestLimit);
+            return (
+              <button
+                key={interest.id}
+                type="button"
+                onClick={() => onToggleInterest(interest.id)}
+                aria-pressed={selected}
+                disabled={disabled}
+                className={[
+                  "rounded-full border px-3 py-1.5 text-sm font-semibold transition",
+                  selected
+                    ? "border-ink bg-ink text-cream"
+                    : "border-rule bg-cream text-ink hover:border-ink/30",
+                  disabled && !selected ? "opacity-50" : "",
+                ].join(" ")}
+              >
+                {interest.label}
+              </button>
+            );
+          })}
+          <button
+            type="button"
+            onClick={onToggleCustom}
+            aria-pressed={child.showCustomInterest}
+            disabled={pending}
+            className={[
+              "rounded-full border px-3 py-1.5 text-sm font-semibold transition",
+              child.showCustomInterest
+                ? "border-ink bg-ink text-cream"
+                : "border-dashed border-ink/25 bg-cream text-ink hover:border-ink/40",
+            ].join(" ")}
+          >
+            + Something else
+          </button>
+        </div>
+        {child.showCustomInterest ? (
+          <label className="block space-y-2">
+            <span className="text-sm font-semibold text-ink">Something else</span>
+            <input
+              name="customInterest"
+              type="text"
+              maxLength={MAX_CUSTOM_INTEREST_CHARS}
+              placeholder={CUSTOM_INTEREST_PLACEHOLDER}
+              className="w-full rounded-2xl border border-rule bg-cream px-4 py-3 text-ink outline-none ring-coral/30 placeholder:text-ink-soft focus:ring-2"
+            />
+          </label>
+        ) : (
+          <input type="hidden" name="customInterest" value="" />
+        )}
+      </div>
+
+      <label className="mt-6 block space-y-2">
+        <span className="text-sm font-semibold text-ink">Anything we should know?</span>
+        <span className="block text-xs text-ink-soft">
+          Optional. A favorite toy, a habit, a person, or a little detail we can tuck into the story.
+        </span>
+        <textarea
+          name="personalNote"
+          rows={3}
+          maxLength={MAX_PERSONAL_NOTE_CHARS}
+          placeholder={PERSONAL_NOTE_PLACEHOLDER}
+          className="w-full rounded-2xl border border-rule bg-cream px-4 py-3 text-ink outline-none ring-coral/30 placeholder:text-ink-soft focus:ring-2"
+        />
+      </label>
     </fieldset>
   );
 }

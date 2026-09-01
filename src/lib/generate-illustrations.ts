@@ -16,6 +16,7 @@ import {
   type IllustrationChild,
 } from "@/lib/illustration-prompt";
 import { applyPreviewWatermark } from "@/lib/illustration-watermark";
+import type { BookContinuity, PagePlanItem } from "@/lib/story-blueprint";
 
 const ILLUSTRATION_BUCKET = "book-illustrations";
 const PHOTO_BUCKET = "child-photos";
@@ -74,6 +75,8 @@ export async function generatePageIllustration(options: {
   pageText: string;
   pageIndex: number;
   pageCount: number;
+  sceneDescription?: string | null;
+  continuity?: BookContinuity | null;
 }): Promise<Buffer> {
   const apiKey = getOpenAIApiKey();
   if (!apiKey) {
@@ -87,6 +90,10 @@ export async function generatePageIllustration(options: {
     options.pageText,
     options.pageIndex,
     options.pageCount,
+    {
+      sceneDescription: options.sceneDescription,
+      continuity: options.continuity,
+    },
   );
 
   let result;
@@ -123,6 +130,8 @@ export async function illustrateBook(options: {
   track: Track;
   pages: string[];
   children: IllustrationChild[];
+  pagePlan?: PagePlanItem[];
+  continuity?: BookContinuity | null;
 }): Promise<(string | null)[]> {
   const supabase = createAdminSupabaseClient();
   if (!supabase) {
@@ -143,6 +152,8 @@ export async function illustrateBook(options: {
         pageText: options.pages[i],
         pageIndex: i,
         pageCount: options.pages.length,
+        sceneDescription: options.pagePlan?.[i]?.scene_description,
+        continuity: options.continuity,
       });
       const watermarked = await applyPreviewWatermark(png);
       const path = `${options.bookId}/page-${String(i + 1).padStart(2, "0")}.png`;

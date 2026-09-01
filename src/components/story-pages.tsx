@@ -1,6 +1,9 @@
-/** Read-aloud story pages on the order confirmation screen. */
+/** Read-aloud story pages on the order confirmation screen.
+ *  Before payment we only show the first seven pages (or fewer if the book is shorter).
+ */
 
 import { illustrationSlot } from "@/lib/illustration-prompt";
+import { PREVIEW_STORY_PAGE_COUNT } from "@/lib/personalization";
 
 export type StoryPageView = {
   text: string;
@@ -17,13 +20,16 @@ export function StoryPages({
   return (
     <section className="mt-10 space-y-5">
       <h2 className="text-2xl tracking-tight text-ink">Your story</h2>
+      <p className="text-sm text-ink-soft">
+        A preview of the first pages. The rest of the book stays unseen until later.
+      </p>
       {illustrating ? (
         <p className="rounded-2xl border border-rule bg-cream/80 px-5 py-4 text-sm text-ink-soft">
           A couple of preview pictures are being painted&hellip;
         </p>
       ) : null}
       <ol className="space-y-5">
-        {pages.map((page, index) => {
+        {pages.slice(0, PREVIEW_STORY_PAGE_COUNT).map((page, index) => {
           const slot = illustrationSlot(index, Boolean(page.imageUrl), illustrating);
           return (
           <li
@@ -45,11 +51,6 @@ export function StoryPages({
             {slot === "loading" ? (
               <p className="mt-4 rounded-2xl bg-paper-deep/60 px-4 py-8 text-center text-sm text-ink-soft">
                 Painting this preview&hellip;
-              </p>
-            ) : null}
-            {slot === "full-book" ? (
-              <p className="mt-4 rounded-2xl bg-paper-deep/60 px-4 py-6 text-center text-sm text-ink-soft">
-                Illustration included in your full book
               </p>
             ) : null}
             <p className="mt-3 font-display text-xl leading-relaxed whitespace-pre-line text-ink">

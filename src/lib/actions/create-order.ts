@@ -18,6 +18,13 @@ import {
   isOpenAIConfigured,
 } from "@/lib/generate-illustrations";
 import { previewGenerationSucceeded } from "@/lib/illustration-prompt";
+import {
+  normalizeCustomInterest,
+  normalizeInterestIds,
+  normalizePersonalNote,
+  parseStoryType,
+  type StoryTypeId,
+} from "@/lib/personalization";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { getTrackBySlug, type Track } from "@/lib/tracks";
@@ -43,14 +50,20 @@ type ParsedChild = {
   name: string;
   age: number;
   photo: File;
+  interestIds: string[];
+  customInterest: string | null;
+  personalNote: string | null;
 };
 
 function parseChildren(
   formData: FormData,
-): { children: ParsedChild[] } | { error: string } {
+): { children: ParsedChild[]; storyType: StoryTypeId } | { error: string } {
   const names = formData.getAll("childName").map(asString);
   const ages = formData.getAll("childAge").map(asString);
   const photos = formData.getAll("photo");
+  const customInterests = formData.getAll("customInterest").map(asString);
+  const personalNotes = formData.getAll("personalNote").map(asString);
+  const storyType = parseStoryType(asString(formData.get("storyType")));
 
   if (names.length < 1 || names.length > MAX_CHILDREN_PER_BOOK) {
     return { error: "Please add between 1 and 4 children to this book." };
@@ -79,10 +92,19 @@ function parseChildren(
     if (!ALLOWED_PHOTO_TYPES.has(photo.type)) {
       return { error: "Please upload a JPG, PNG, or WebP photo." };
     }
-    children.push({ name, age, photo });
+    children.push({
+      name,
+      age,
+      photo,
+      interestIds: normalizeInterestIds(
+        formData.getAll(`interests-${i}`).map(asString),
+      ),
+      customInterest: normalizeCustomInterest(customInterests[i] ?? ""),
+      personalNote: normalizePersonalNote(personalNotes[i] ?? ""),
+    });
   }
 
-  return { children };
+  return { children, storyType };
 }
 
 export async function createOrder(
@@ -101,7 +123,7 @@ export async function createOrder(
     return { error: parsed.error };
   }
 
-  const { children } = parsed;
+  const { children, storyType } = parsed;
 
   // Without a live Supabase project, skip persistence and still show a
   // confirmation page so the frontend flow can be reviewed end to end.
@@ -146,7 +168,14 @@ export async function createOrder(
     return { error: "We couldn't save this order. Please try again in a moment." };
   }
 
-  const uploaded: { name: string; age: number; photoPath: string }[] = [];
+  const uploaded: {
+    name: string;
+    age: number;
+    photoPath: string;
+    interestIds: string[];
+    customInterest: string | null;
+    personalNote: string | null;
+  }[] = [];
   for (const child of children) {
     const photoPath = `${customer.id}/${randomUUID()}.${photoExtension(child.photo)}`;
     const photoBuffer = Buffer.from(await child.photo.arrayBuffer());
@@ -162,7 +191,14 @@ export async function createOrder(
       return { error: "We couldn't upload that photo. Please try a different image." };
     }
 
-    uploaded.push({ name: child.name, age: child.age, photoPath });
+    uploaded.push({
+      name: child.name,
+      age: child.age,
+      photoPath,
+      interestIds: child.interestIds,
+      customInterest: child.customInterest,
+      personalNote: child.personalNote,
+    });
   }
 
   const { data: order, error: orderError } = await supabase
@@ -186,6 +222,9 @@ export async function createOrder(
       child_age: child.age,
       photo_path: child.photoPath,
       sort_order: index,
+      interests: child.interestIds,
+      custom_interest: child.customInterest,
+      personal_note: child.personalNote,
     })),
   );
 
@@ -201,6 +240,7 @@ export async function createOrder(
       track.name,
     ),
     status: "pending",
+    story_type: storyType,
   }).select("id").single();
 
   if (bookError || !book) {
@@ -209,7 +249,7 @@ export async function createOrder(
 
   if (isAnthropicConfigured()) {
     await supabase.from("books").update({ status: "generating" }).eq("id", book.id);
-    scheduleStoryGeneration(book.id, track, uploaded);
+    scheduleStoryGeneration(book.id, track, uploaded, storyType);
   }
 
   redirect(`/order/${order.id}`);
@@ -218,17 +258,33 @@ export async function createOrder(
 function scheduleStoryGeneration(
   bookId: string,
   track: Track,
-  children: { name: string; age: number; photoPath: string }[],
+  children: {
+    name: string;
+    age: number;
+    photoPath: string;
+    interestIds: string[];
+    customInterest: string | null;
+    personalNote: string | null;
+  }[],
+  storyType: StoryTypeId,
 ) {
   after(async () => {
     const admin = createAdminSupabaseClient();
     if (!admin) return;
 
     try {
-      const pages = await generateStoryPages(
+      const story = await generateStoryPages(
         track,
-        children.map((child) => ({ name: child.name, age: child.age })),
+        children.map((child) => ({
+          name: child.name,
+          age: child.age,
+          interests: child.interestIds,
+          customInterest: child.customInterest,
+          personalNote: child.personalNote,
+        })),
+        storyType,
       );
+      const pages = story.pages;
       const paintPictures = isOpenAIConfigured();
       const { error: storyError } = await admin
         .from("books")
@@ -237,6 +293,10 @@ function scheduleStoryGeneration(
           pages,
           page_count: pages.length,
           preview_generated: false,
+          story_type: storyType,
+          blueprint: story.blueprint,
+          continuity: story.continuity,
+          page_plan: story.pagePlan,
         })
         .eq("id", bookId);
 
@@ -254,6 +314,8 @@ function scheduleStoryGeneration(
           track,
           pages,
           children,
+          pagePlan: story.pagePlan,
+          continuity: story.continuity,
         });
         const previewOk = previewGenerationSucceeded(illustrations, pages.length);
         await admin

@@ -46,6 +46,9 @@ export type BookChildRow = {
   child_age: number;
   photo_path: string | null;
   sort_order: number;
+  interests: string[];
+  custom_interest: string | null;
+  personal_note: string | null;
   created_at: string;
 };
 
@@ -58,6 +61,10 @@ export type BookRow = {
   pages: string[] | null;
   illustrations: (string | null)[] | null;
   preview_generated: boolean;
+  story_type: string | null;
+  blueprint: Record<string, unknown> | null;
+  continuity: Record<string, unknown> | null;
+  page_plan: Record<string, unknown>[] | null;
   created_at: string;
 };
 

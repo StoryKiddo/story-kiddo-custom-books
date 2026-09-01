@@ -1,23 +1,44 @@
 /**
- * Server-only helper that writes a short personalized story via the Anthropic API.
- * Never import this file from a Client Component.
+ * Server-only helper that writes a personalized story via Anthropic.
+ * Blueprint is generated first (internal only), then pages are written from it.
+ * Parents never see a concept-preview or approval step.
  */
 
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import type { Track } from "@/lib/tracks";
+import type { StoryTypeId } from "@/lib/personalization";
+import { DEFAULT_STORY_TYPE } from "@/lib/personalization";
 import {
-  STORY_SYSTEM_PROMPT,
-  buildStoryPrompt,
+  BLUEPRINT_SYSTEM_PROMPT,
+  PAGES_SYSTEM_PROMPT,
+  buildBlueprintPrompt,
+  buildPagesPrompt,
+  continuityFromBlueprint,
+  parseBlueprint,
+  parseGeneratedPages,
+  toNormalizedChildren,
+  type BookContinuity,
+  type PagePlanItem,
+  type StoryBlueprint,
+  type StoryChildInput,
+} from "@/lib/story-blueprint";
+import {
   isAlphabetTheme,
   parseStoryPages,
   storyPageBounds,
-  type StoryChild,
 } from "@/lib/story-prompt";
 
 const STORY_MODEL = "claude-sonnet-4-5";
 
-export type { StoryChild };
+export type { StoryChildInput };
+
+export type GeneratedStory = {
+  pages: string[];
+  blueprint: StoryBlueprint;
+  continuity: BookContinuity;
+  pagePlan: PagePlanItem[];
+};
 
 export function getAnthropicApiKey(): string | null {
   const key = process.env.ANTHROPIC_API_KEY?.trim();
@@ -28,60 +49,92 @@ export function isAnthropicConfigured(): boolean {
   return Boolean(getAnthropicApiKey());
 }
 
+function textFromMessage(message: {
+  content: { type: string; text?: string }[];
+  stop_reason?: string | null;
+}): string {
+  if (message.stop_reason === "max_tokens") {
+    throw new Error("The story model ran out of room before finishing.");
+  }
+  return message.content
+    .filter((block) => block.type === "text")
+    .map((block) => ("text" in block ? block.text : ""))
+    .join("\n")
+    .trim();
+}
+
+async function completeJson(
+  client: Anthropic,
+  system: string,
+  user: string,
+  maxTokens: number,
+): Promise<string> {
+  const message = await client.messages.create({
+    model: STORY_MODEL,
+    max_tokens: maxTokens,
+    system,
+    messages: [{ role: "user" as const, content: user }],
+  });
+
+  const text = textFromMessage(message);
+  if (!text) {
+    throw new Error("The story model returned no text.");
+  }
+  return text;
+}
+
 export async function generateStoryPages(
   track: Track,
-  children: StoryChild[],
-): Promise<string[]> {
+  children: StoryChildInput[],
+  storyType: StoryTypeId = DEFAULT_STORY_TYPE,
+): Promise<GeneratedStory> {
   const apiKey = getAnthropicApiKey();
   if (!apiKey) {
     throw new Error("ANTHROPIC_API_KEY is not configured.");
   }
 
   const bounds = storyPageBounds(track);
+  const normalized = toNormalizedChildren(children, storyType);
   const client = new Anthropic({ apiKey });
-  const request = {
-    model: STORY_MODEL,
-    max_tokens: isAlphabetTheme(track) ? 8192 : 4096,
-    system: STORY_SYSTEM_PROMPT,
-    messages: [{ role: "user" as const, content: buildStoryPrompt(track, children) }],
-  };
-  const structuredFormat = {
-    type: "json_schema" as const,
-    schema: {
-      type: "object",
-      properties: {
-        pages: {
-          type: "array",
-          items: { type: "string" },
-          minItems: bounds.min,
-          maxItems: bounds.max,
-        },
-      },
-      required: ["pages"],
-      additionalProperties: false,
-    },
-  };
 
-  let message;
-  try {
-    message = await client.messages.create({
-      ...request,
-      output_config: { format: structuredFormat },
-    });
-  } catch (error) {
-    console.error("Structured story request failed, retrying without schema", error);
-    message = await client.messages.create(request);
+  const blueprintText = await completeJson(
+    client,
+    BLUEPRINT_SYSTEM_PROMPT,
+    buildBlueprintPrompt(track, normalized, storyType),
+    4096,
+  );
+  const blueprint = parseBlueprint(blueprintText);
+
+  const pagesText = await completeJson(
+    client,
+    PAGES_SYSTEM_PROMPT,
+    buildPagesPrompt(track, normalized, storyType, blueprint),
+    isAlphabetTheme(track) ? 16384 : 8192,
+  );
+
+  const parsed = parseGeneratedPages(pagesText);
+  let pageTexts = parsed.pageTexts;
+  if (pageTexts.length === 0) {
+    pageTexts = parseStoryPages(pagesText, bounds);
+  } else {
+    pageTexts = parseStoryPages(JSON.stringify({ pages: pageTexts }), bounds);
   }
 
-  const text = message.content
-    .filter((block) => block.type === "text")
-    .map((block) => block.text)
-    .join("\n")
-    .trim();
+  const pagePlan =
+    parsed.pagePlan.length === pageTexts.length
+      ? parsed.pagePlan
+      : pageTexts.map((text, index) => parsed.pagePlan[index] ?? {
+          letter: isAlphabetTheme(track) ? String.fromCharCode(65 + index) : null,
+          scene_description: text,
+          characters_present: children.map((child) => child.name),
+        });
 
-  if (!text) {
-    throw new Error("The story model returned no text.");
-  }
+  const continuity = parsed.continuity ?? continuityFromBlueprint(blueprint);
 
-  return parseStoryPages(text, bounds);
+  return {
+    pages: pageTexts,
+    blueprint,
+    continuity,
+    pagePlan,
+  };
 }

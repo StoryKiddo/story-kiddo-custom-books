@@ -3,7 +3,8 @@
  * Kept free of server-only so sample scripts can reuse the same wording.
  */
 
-import type { Track } from "@/lib/tracks";
+import type { Track } from "./tracks.ts";
+import { bookReadingAge, readingProfileFromAge } from "./personalization.ts";
 
 export const MIN_STORY_PAGES = 8;
 export const MAX_STORY_PAGES = 12;
@@ -59,28 +60,6 @@ function joinChildren(children: StoryChild[]): string {
     .join(", ");
 }
 
-function complexityGuidance(youngest: number): string {
-  if (youngest <= 2) {
-    return `Write for a ${youngest}-year-old being read to — a toddler board-book, not a story for the oldest kids in the range.
-- Very short lines (about 3 to 7 words).
-- Concrete words a toddler knows: names, colors, animals, body parts, everyday objects you can point at.
-- No abstract ideas, no long clauses, no "big" vocabulary.
-- Rhythm a parent can bounce a toddler to.`;
-  }
-
-  if (youngest <= 3) {
-    return `Write for a ${youngest}-year-old being read to — preschool read-aloud, not a story for the oldest kids in the range.
-- Short lines (about 5 to 10 words).
-- Still concrete. Simple feeling words are fine (kind, share, help, hug, sad, glad).
-- Slightly more story than a toddler book, but sentences stay short and easy to hear aloud.`;
-  }
-
-  return `Write for a ${youngest}-year-old being read to — not for the oldest kids in the range.
-- Short, clear sentences a parent can read aloud.
-- Concrete first; a little more description is fine.
-- Simple words. No lectures.`;
-}
-
 export const STORY_SYSTEM_PROMPT = `You write personalized picture-book verse for Story Kiddo Custom Books.
 
 Voice:
@@ -91,7 +70,8 @@ Voice:
 - Match the educational theme in a playful way — never a lecture.`;
 
 export function buildStoryPrompt(track: Track, children: StoryChild[]): string {
-  const range = parseThemeAgeRange(track.ageRange);
+  const youngest = bookReadingAge(children);
+  const profile = readingProfileFromAge(youngest);
   const stars = joinChildren(children);
   const together =
     children.length > 1
@@ -102,9 +82,9 @@ export function buildStoryPrompt(track: Track, children: StoryChild[]): string {
 Theme focus: ${track.description}
 Theme age range: ${track.ageRange}
 
-Write vocabulary, sentence length, and complexity for the YOUNGEST age in that range: age ${range.youngest} (not age ${range.oldest}, and not only the oldest child listed). A parent reading this to a ${range.youngest}-year-old must be able to use it as-is.
+Write vocabulary, sentence length, and complexity for the YOUNGEST child starring in this book: age ${youngest} (${profile.band}). Do not write up to the oldest child or the top of the theme age range.
 
-${complexityGuidance(range.youngest)}
+${profile.guidance}
 
 Children starring in this book: ${stars}
 
@@ -128,8 +108,10 @@ function pageCountGuidance(track: Track): string {
 - Page 1 is A, page 2 is B, page 3 is C, … page 26 is Z.
 - Cover every letter: ${letters}.
 - Do not skip a letter, merge two letters onto one page, or stop early (do not end at J or anywhere before Z).
-- On each page, show that page's letter clearly (for example "A is for ant") plus a simple word that starts with it, starring the child.
-- Keep the rhyme and youngest-age complexity rules on every letter page.`;
+- This is ONE continuous story across all 26 pages, not 26 disconnected vocabulary sentences.
+- Each page's letter may appear as the first word, an important object, an action, a place, or a plot event.
+- Story quality and readability take priority over a forced "A is for…" list, except for toddlers/preschoolers where a clear letter/object association is welcome.
+- Keep the youngest-age complexity rules on every letter page.`;
   }
 
   return `Write a short story of ${MIN_STORY_PAGES} to ${MAX_STORY_PAGES} pages.`;
@@ -203,6 +185,11 @@ export function missingAlphabetLetters(pages: string[]): string[] {
 }
 
 function pageHighlightsLetter(page: string, letter: string): boolean {
+  const firstWord = page.trim().split(/\s+/)[0] ?? "";
+  const firstLetter = firstWord.replace(/[^A-Za-z]/g, "").charAt(0);
+  if (firstLetter && firstLetter.toUpperCase() === letter.toUpperCase()) {
+    return true;
+  }
   const escaped = letter.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const asOwnWord = new RegExp(`(?:^|[^A-Za-z])${escaped}(?:[^A-Za-z]|$)`, "i");
   const isFor = new RegExp(`(?:^|\\n)\\s*${escaped}\\s+is\\s+for\\b`, "i");

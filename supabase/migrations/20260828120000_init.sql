@@ -72,6 +72,9 @@ create table if not exists public.book_children (
   child_age integer not null check (child_age >= 0 and child_age <= 12),
   photo_path text,
   sort_order integer not null default 0,
+  interests text[] not null default '{}',
+  custom_interest text,
+  personal_note text,
   created_at timestamptz not null default now()
 );
 
@@ -79,6 +82,12 @@ comment on table public.book_children is
   'Children starring in a book order. One order can have 1–4 rows.';
 comment on column public.book_children.photo_path is
   'Object path inside the child-photos Storage bucket, not a public URL.';
+comment on column public.book_children.interests is
+  'Canonical interest chip ids selected for this child (max 5). Empty means none.';
+comment on column public.book_children.custom_interest is
+  'Optional parent-typed extra interest. Null when unused.';
+comment on column public.book_children.personal_note is
+  'Optional parent-typed personal detail. Null when unused. Untrusted story data.';
 
 -- The storybook produced from an order. Illustration generation will fill
 -- this in later; for now we insert a pending stub when the order is placed.
@@ -92,6 +101,10 @@ create table if not exists public.books (
   pages jsonb,
   illustrations jsonb,
   preview_generated boolean not null default false,
+  story_type text,
+  blueprint jsonb,
+  continuity jsonb,
+  page_plan jsonb,
   created_at timestamptz not null default now()
 );
 
@@ -103,6 +116,14 @@ comment on column public.books.illustrations is
   'JSON array of storage paths in book-illustrations, one entry per story page (null if that page has no image yet).';
 comment on column public.books.preview_generated is
   'True once the first two watermarked preview illustrations are stored. Full-book images are generated later, after payment.';
+comment on column public.books.story_type is
+  'Narrative style for the whole book: big_adventure, learning_adventure, sweet_magical, or simple_abc.';
+comment on column public.books.blueprint is
+  'Internal story blueprint used as source of truth for page generation. Not shown as a parent approval step.';
+comment on column public.books.continuity is
+  'Stable world/character/object notes so later pages and illustrations stay consistent.';
+comment on column public.books.page_plan is
+  'Optional per-page scene notes (letter, scene_description) aligned with pages[].';
 
 create index if not exists orders_customer_id_idx on public.orders (customer_id);
 create index if not exists orders_track_id_idx on public.orders (track_id);

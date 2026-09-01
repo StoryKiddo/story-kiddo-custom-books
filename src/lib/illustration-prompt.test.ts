@@ -48,6 +48,29 @@ describe("gpt-image-2 illustration request", () => {
 });
 
 describe("illustration prompt", () => {
+  it("can add scene and continuity notes without dropping Image 1 identity mapping", () => {
+    const prompt = buildIllustrationPrompt(
+      manners,
+      [mia, leo],
+      "Mia and Leo take turns.",
+      0,
+      8,
+      {
+        sceneDescription: "Grandma's kitchen with a blue mixing bowl on the table.",
+        continuity: {
+          world_description: "a sunny kitchen",
+          recurring_objects: ["blue mixing bowl"],
+          clothing: "Mia's yellow raincoat",
+        },
+      },
+    );
+    assert.match(prompt, /Image 1[\s\S]*Mia \(age 4\)/);
+    assert.match(prompt, /Image 2[\s\S]*Leo \(age 6\)/);
+    assert.match(prompt, /blue mixing bowl/);
+    assert.match(prompt, /yellow raincoat/);
+    assert.match(prompt, /Scene notes for the illustrator/);
+  });
+
   it("asks for a 3D animated children's-book style, not watercolor", () => {
     assert.match(ART_STYLE, /3D animated/i);
     assert.doesNotMatch(ART_STYLE, /watercolor/i);
@@ -138,11 +161,11 @@ describe("preview illustration limit", () => {
     assert.equal(previewGenerationSucceeded(["book/page-01.png"], 1), true);
   });
 
-  it("shows a full-book placeholder on pages after the preview", () => {
+  it("shows only images or loading on the first two pages, and plain text after", () => {
     assert.equal(illustrationSlot(0, true, false), "image");
     assert.equal(illustrationSlot(1, false, true), "loading");
-    assert.equal(illustrationSlot(2, false, true), "full-book");
-    assert.equal(illustrationSlot(5, false, false), "full-book");
+    assert.equal(illustrationSlot(2, false, true), "none");
+    assert.equal(illustrationSlot(5, false, false), "none");
     assert.equal(illustrationSlot(0, false, false), "none");
   });
 });

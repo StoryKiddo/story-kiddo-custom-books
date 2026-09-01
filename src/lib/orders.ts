@@ -6,6 +6,7 @@
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { getTrackBySlug, type Track } from "@/lib/tracks";
 import type { BookStatus } from "@/lib/supabase/types";
+import { PREVIEW_STORY_PAGE_COUNT, visiblePreviewSlice } from "@/lib/personalization";
 
 export const MAX_CHILDREN_PER_BOOK = 4;
 
@@ -163,9 +164,11 @@ export async function getOrderSummary(
     .eq("order_id", order.id)
     .maybeSingle();
 
-  const pages = asPages(book?.pages);
+  const pages = visiblePreviewSlice(asPages(book?.pages) ?? []);
   const bookStatus: BookStatus = book?.status ?? "pending";
-  const illustrationUrls = await signIllustrationUrls(asIllustrationPaths(book?.illustrations));
+  const illustrationUrls = await signIllustrationUrls(
+    asIllustrationPaths(book?.illustrations)?.slice(0, PREVIEW_STORY_PAGE_COUNT) ?? null,
+  );
 
   return {
     id: order.id,
@@ -175,7 +178,7 @@ export async function getOrderSummary(
     bookTitle: book?.title || formatBookTitle(children, track.name),
     status: order.status,
     bookStatus,
-    pages,
+    pages: pages.length > 0 ? pages : null,
     illustrationUrls,
     previewGenerated: Boolean(book?.preview_generated),
   };
