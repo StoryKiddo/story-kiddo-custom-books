@@ -142,12 +142,9 @@ export function buildBlueprintPrompt(
 ): string {
   const youngest = bookReadingAge(children);
   const profile = readingProfileFromAge(youngest);
-  const allLabels = children.flatMap((child) => {
-    const labels = [...child.selected_interests];
-    if (child.custom_interest) labels.push(child.custom_interest);
-    return labels;
-  });
-  const ranked = prioritizeInterests(allLabels);
+  const ranked = prioritizeInterests(
+    children.flatMap((child) => child.selected_interests),
+  );
   const together =
     children.length > 1
       ? `This book stars more than one child. They share one adventure. Do not merge their interests into a mash-up world. Do not give one child's toy, pet, or habit to another.`
@@ -292,7 +289,16 @@ function asStringArray(value: unknown): string[] {
 
 export function parseBlueprint(raw: string): StoryBlueprint {
   const parsed = parseJsonObject(raw);
-  const title = asString(parsed.title) || "A Story Kiddo Adventure";
+  if (!parsed) {
+    throw new Error("The story model returned an unreadable blueprint.");
+  }
+  const title = asString(parsed.title);
+  const premise = asString(parsed.premise);
+  const world = asString(parsed.world);
+  const goal = asString(parsed.goal);
+  if (!title || !premise || !world || !goal) {
+    throw new Error("The story model returned an incomplete blueprint.");
+  }
   const arc = parsed.alphabet_arc;
   let alphabet_arc: StoryBlueprint["alphabet_arc"] = null;
   if (arc && typeof arc === "object" && !Array.isArray(arc)) {
@@ -306,14 +312,14 @@ export function parseBlueprint(raw: string): StoryBlueprint {
   }
   return {
     title,
-    premise: asString(parsed.premise) || title,
-    world: asString(parsed.world) || "a warm, familiar neighborhood",
+    premise,
+    world,
     primary_interest: asStringOrNull(parsed.primary_interest),
     secondary_interest: asStringOrNull(parsed.secondary_interest),
     decorative_interests: asStringArray(parsed.decorative_interests),
     personal_hook: asStringOrNull(parsed.personal_hook),
     recurring_object: asStringOrNull(parsed.recurring_object),
-    goal: asString(parsed.goal) || "come home happy",
+    goal,
     conflict: asString(parsed.conflict) || "a small problem to solve",
     resolution: asString(parsed.resolution) || "friends help and everyone is safe",
     tone: asString(parsed.tone) || "warm and playful",
@@ -327,7 +333,7 @@ export function parseGeneratedPages(raw: string): {
   continuity: BookContinuity | null;
 } {
   const parsed = parseJsonObject(raw);
-  const pagesRaw = parsed.pages;
+  const pagesRaw = parsed?.pages;
   const collected: { order: number; text: string; plan: PagePlanItem }[] = [];
   if (Array.isArray(pagesRaw)) {
     pagesRaw.forEach((item, index) => {
@@ -363,7 +369,7 @@ export function parseGeneratedPages(raw: string): {
   collected.sort((a, b) => a.order - b.order);
   const pagePlan = collected.map((item) => item.plan);
   const pageTexts = collected.map((item) => item.text);
-  const continuityRaw = parsed.continuity;
+  const continuityRaw = parsed?.continuity;
   let continuity: BookContinuity | null = null;
   if (continuityRaw && typeof continuityRaw === "object" && !Array.isArray(continuityRaw)) {
     const record = continuityRaw as Record<string, unknown>;
@@ -378,7 +384,7 @@ export function parseGeneratedPages(raw: string): {
   return { pageTexts, pagePlan, continuity };
 }
 
-function parseJsonObject(raw: string): Record<string, unknown> {
+function parseJsonObject(raw: string): Record<string, unknown> | null {
   const trimmed = raw
     .trim()
     .replace(/^```(?:json)?\s*/i, "")
@@ -391,5 +397,5 @@ function parseJsonObject(raw: string): Record<string, unknown> {
   } catch {
     // fall through
   }
-  return {};
+  return null;
 }

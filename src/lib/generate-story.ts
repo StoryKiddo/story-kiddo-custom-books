@@ -49,7 +49,13 @@ export function isAnthropicConfigured(): boolean {
   return Boolean(getAnthropicApiKey());
 }
 
-function textFromMessage(message: { content: { type: string; text?: string }[] }): string {
+function textFromMessage(message: {
+  content: { type: string; text?: string }[];
+  stop_reason?: string | null;
+}): string {
+  if (message.stop_reason === "max_tokens") {
+    throw new Error("The story model ran out of room before finishing.");
+  }
   return message.content
     .filter((block) => block.type === "text")
     .map((block) => ("text" in block ? block.text : ""))
@@ -63,31 +69,12 @@ async function completeJson(
   user: string,
   maxTokens: number,
 ): Promise<string> {
-  const request = {
+  const message = await client.messages.create({
     model: STORY_MODEL,
     max_tokens: maxTokens,
     system,
     messages: [{ role: "user" as const, content: user }],
-  };
-
-  const structuredFormat = {
-    type: "json_schema" as const,
-    schema: {
-      type: "object",
-      additionalProperties: true,
-    },
-  };
-
-  let message;
-  try {
-    message = await client.messages.create({
-      ...request,
-      output_config: { format: structuredFormat },
-    });
-  } catch (error) {
-    console.error("Structured story request failed, retrying without schema", error);
-    message = await client.messages.create(request);
-  }
+  });
 
   const text = textFromMessage(message);
   if (!text) {
@@ -122,7 +109,7 @@ export async function generateStoryPages(
     client,
     PAGES_SYSTEM_PROMPT,
     buildPagesPrompt(track, normalized, storyType, blueprint),
-    isAlphabetTheme(track) ? 8192 : 4096,
+    isAlphabetTheme(track) ? 16384 : 8192,
   );
 
   const parsed = parseGeneratedPages(pagesText);

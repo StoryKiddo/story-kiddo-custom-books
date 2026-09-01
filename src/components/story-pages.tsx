@@ -20,6 +20,9 @@ export function StoryPages({
   return (
     <section className="mt-10 space-y-5">
       <h2 className="text-2xl tracking-tight text-ink">Your story</h2>
+      <p className="text-sm text-ink-soft">
+        A preview of the first pages. The rest of the book stays unseen until later.
+      </p>
       {illustrating ? (
         <p className="rounded-2xl border border-rule bg-cream/80 px-5 py-4 text-sm text-ink-soft">
           A couple of preview pictures are being painted&hellip;
