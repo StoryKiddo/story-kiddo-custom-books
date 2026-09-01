@@ -8,14 +8,20 @@ import {
 } from "./illustration-watermark.ts";
 
 describe("preview watermark", () => {
-  it("tiles STORY KIDDO PREVIEW in white at about 20–25% opacity", () => {
+  it("draws a few large diagonal STORY KIDDO marks, not a dense tile", () => {
     const svg = buildWatermarkSvg(1024, 1536);
-    assert.match(svg, /STORY KIDDO PREVIEW/);
-    assert.equal(PREVIEW_WATERMARK_TEXT, "STORY KIDDO PREVIEW");
-    assert.ok(PREVIEW_WATERMARK_OPACITY >= 0.2 && PREVIEW_WATERMARK_OPACITY <= 0.25);
+    const copies = svg.match(/STORY KIDDO/g) ?? [];
+    assert.equal(PREVIEW_WATERMARK_TEXT, "STORY KIDDO");
+    assert.doesNotMatch(svg, /STORY KIDDO PREVIEW/);
+    assert.ok(copies.length >= 2 && copies.length <= 3);
+    assert.doesNotMatch(svg, /<pattern/i);
+    assert.ok(PREVIEW_WATERMARK_OPACITY >= 0.25 && PREVIEW_WATERMARK_OPACITY <= 0.3);
     assert.match(svg, /fill="white"/);
-    assert.match(svg, /fill-opacity="0\.2[0-9]?"/);
+    assert.match(svg, /fill-opacity="0\.2[5-9]"|fill-opacity="0\.3"/);
     assert.match(svg, /rotate\(-?\d+/);
+    const fontSize = Number(svg.match(/font-size="(\d+)"/)?.[1]);
+    assert.ok(fontSize >= 120, `font-size ${fontSize} should be large on a 1024px-wide page`);
+    assert.match(svg, /font-weight="(700|800|bold)"/);
     assert.match(svg, /width="1024"/);
     assert.match(svg, /height="1536"/);
   });
