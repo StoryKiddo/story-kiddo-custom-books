@@ -101,6 +101,21 @@ export function ChildDetailsForm({ track }: { track: Track }) {
       .map((input) => input.files?.[0])
       .filter((file): file is File => Boolean(file && file.size > 0));
 
+    if (children.some((child) => child.name.trim().length < 1 || child.name.trim().length > 40)) {
+      setClientError(CREATE_ORDER_MESSAGES.nameInvalid);
+      return;
+    }
+
+    if (
+      children.some((child) => {
+        const age = Number.parseInt(child.age, 10);
+        return !Number.isInteger(age) || age < 0 || age > 12;
+      })
+    ) {
+      setClientError(CREATE_ORDER_MESSAGES.ageInvalid);
+      return;
+    }
+
     if (files.length !== children.length) {
       setClientError(CREATE_ORDER_MESSAGES.photoMissing);
       return;
@@ -117,12 +132,32 @@ export function ChildDetailsForm({ track }: { track: Track }) {
       return;
     }
 
+    const formData = new FormData();
+    formData.set("track", track.slug);
+    formData.set("storyType", storyType);
+    children.forEach((child, index) => {
+      formData.append("childName", child.name.trim());
+      formData.append("childAge", child.age.trim());
+      formData.append(
+        "customInterest",
+        child.showCustomInterest ? child.customInterest : "",
+      );
+      formData.append("personalNote", child.personalNote);
+      for (const interestId of child.interestIds) {
+        formData.append(`interests-${index}`, interestId);
+      }
+    });
+    for (const file of files) {
+      formData.append("photo", file);
+    }
+
     setClientError(null);
-    formAction(new FormData(form));
+    formAction(formData);
   }
 
   return (
     <form
+      noValidate
       onSubmit={onSubmit}
       aria-busy={pending}
       className="space-y-8"
@@ -292,6 +327,7 @@ function ChildCard({
             placeholder="Dylan"
             value={child.name}
             onChange={(event) => onPatch({ name: event.target.value })}
+            onInput={(event) => onPatch({ name: event.currentTarget.value })}
             className="w-full rounded-2xl border border-rule bg-cream px-4 py-3 text-ink outline-none ring-coral/30 placeholder:text-ink-soft focus:ring-2"
           />
         </label>
@@ -307,6 +343,7 @@ function ChildCard({
             placeholder="4"
             value={child.age}
             onChange={(event) => onPatch({ age: event.target.value })}
+            onInput={(event) => onPatch({ age: event.currentTarget.value })}
             className="w-full rounded-2xl border border-rule bg-cream px-4 py-3 text-ink outline-none ring-coral/30 placeholder:text-ink-soft focus:ring-2"
           />
           {index === 0 ? (
@@ -372,6 +409,7 @@ function ChildCard({
               placeholder={CUSTOM_INTEREST_PLACEHOLDER}
               value={child.customInterest}
               onChange={(event) => onPatch({ customInterest: event.target.value })}
+              onInput={(event) => onPatch({ customInterest: event.currentTarget.value })}
               className="w-full rounded-2xl border border-rule bg-cream px-4 py-3 text-ink outline-none ring-coral/30 placeholder:text-ink-soft focus:ring-2"
             />
           </label>
@@ -392,6 +430,7 @@ function ChildCard({
           placeholder={PERSONAL_NOTE_PLACEHOLDER}
           value={child.personalNote}
           onChange={(event) => onPatch({ personalNote: event.target.value })}
+          onInput={(event) => onPatch({ personalNote: event.currentTarget.value })}
           className="w-full rounded-2xl border border-rule bg-cream px-4 py-3 text-ink outline-none ring-coral/30 placeholder:text-ink-soft focus:ring-2"
         />
       </label>
