@@ -272,13 +272,14 @@ async function submitCreateOrder(formData: FormData): Promise<CreateOrderState> 
       story_type: storyType,
     };
 
-    let { data: book, error: bookError } = await supabase
+    const inserted = await supabase
       .from("books")
       .insert(bookPayload)
       .select("id")
       .single();
+    let book = inserted.data;
 
-    if (bookError || !book) {
+    if (inserted.error || !book) {
       const retry = await supabase.from("books").insert(bookPayload).select("id").single();
       book = retry.data;
     }

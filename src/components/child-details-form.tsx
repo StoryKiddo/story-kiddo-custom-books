@@ -92,38 +92,37 @@ export function ChildDetailsForm({ track }: { track: Track }) {
   }
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
     const photos = Array.from(
-      event.currentTarget.querySelectorAll<HTMLInputElement>('input[name="photo"]'),
+      form.querySelectorAll<HTMLInputElement>('input[name="photo"]'),
     );
     const files = photos
       .map((input) => input.files?.[0])
       .filter((file): file is File => Boolean(file && file.size > 0));
 
     if (files.length !== children.length) {
-      event.preventDefault();
       setClientError(CREATE_ORDER_MESSAGES.photoMissing);
       return;
     }
 
     if (files.some((file) => isPhotoOverSizeLimit(file.size))) {
-      event.preventDefault();
       setClientError(CREATE_ORDER_MESSAGES.photoTooLarge);
       return;
     }
 
     const totalBytes = files.reduce((sum, file) => sum + file.size, 0);
     if (isPayloadOverActionLimit(totalBytes)) {
-      event.preventDefault();
       setClientError(CREATE_ORDER_MESSAGES.payloadTooLarge);
       return;
     }
 
     setClientError(null);
+    formAction(new FormData(form));
   }
 
   return (
     <form
-      action={formAction}
       onSubmit={onSubmit}
       aria-busy={pending}
       className="space-y-8"
@@ -209,6 +208,7 @@ export function ChildDetailsForm({ track }: { track: Track }) {
           ref={errorRef}
           className="space-y-3 rounded-2xl bg-[#f5d0d8] px-4 py-3"
           role="alert"
+          aria-live="assertive"
         >
           <p className="text-sm font-semibold text-[#7a2d3d]">{errorMessage}</p>
           <p className="text-xs text-[#7a2d3d]/80">
@@ -220,6 +220,7 @@ export function ChildDetailsForm({ track }: { track: Track }) {
 
       <button
         type="submit"
+        id="create-book-submit"
         disabled={pending}
         className="rounded-full bg-coral px-8 py-3 text-sm font-semibold text-white shadow-[0_1px_0_rgba(255,255,255,0.2)_inset,0_10px_20px_-8px_rgba(181,78,53,0.7)] transition hover:bg-coral-dark disabled:cursor-wait disabled:opacity-70"
       >
