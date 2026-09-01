@@ -53,6 +53,16 @@ export function buildIllustrationPrompt(
   pageText: string,
   pageIndex: number,
   pageCount: number,
+  extras?: {
+    sceneDescription?: string | null;
+    continuity?: {
+      world_description?: string | null;
+      companion_characters?: string[];
+      recurring_objects?: string[];
+      clothing?: string | null;
+      story_goal?: string | null;
+    } | null;
+  },
 ): string {
   const childLines = children
     .map((child, index) => {
@@ -71,6 +81,30 @@ export function buildIllustrationPrompt(
       ? `If this page is about a letter, you may paint that single large letter as a 3D picture-book prop in the scene — not a computer font, not a caption overlay.`
       : `Do not add titles, captions, speech bubbles, watermarks, or paragraphs of text.`;
 
+  const continuity = extras?.continuity;
+  const continuityLines = continuity
+    ? [
+        continuity.world_description
+          ? `Keep the world consistent: ${continuity.world_description}`
+          : "",
+        continuity.clothing ? `Keep clothing consistent: ${continuity.clothing}` : "",
+        continuity.recurring_objects && continuity.recurring_objects.length > 0
+          ? `Recurring objects that may appear: ${continuity.recurring_objects.join(", ")}`
+          : "",
+        continuity.companion_characters && continuity.companion_characters.length > 0
+          ? `Companion characters: ${continuity.companion_characters.join(", ")}`
+          : "",
+        continuity.story_goal ? `Story goal: ${continuity.story_goal}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n")
+    : "";
+  const scene = extras?.sceneDescription?.trim();
+  const sceneBlock =
+    scene && scene !== pageText.trim()
+      ? `Scene notes for the illustrator:\n"""\n${scene}\n"""`
+      : "";
+
   return `${ART_STYLE}
 
 This is page ${pageIndex + 1} of ${pageCount} in a personalized picture book.
@@ -87,7 +121,9 @@ Scene to illustrate, from the story:
 ${pageText}
 """
 
-${letterNote}`;
+${letterNote}
+${continuityLines ? `\n${continuityLines}` : ""}
+${sceneBlock ? `\n${sceneBlock}` : ""}`;
 }
 
 export type IllustrationApiErrorInfo = {
@@ -166,7 +202,7 @@ export function illustrationSlot(
   hasImage: boolean,
   illustrating: boolean,
 ): IllustrationSlot {
-  if (!isPreviewIllustrationPage(index)) return "full-book";
+  if (!isPreviewIllustrationPage(index)) return "none";
   if (hasImage) return "image";
   if (illustrating) return "loading";
   return "none";
