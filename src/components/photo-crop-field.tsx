@@ -3,11 +3,15 @@
 import { useEffect, useRef, useState } from "react";
 import Cropper, { type Area } from "react-easy-crop";
 import "react-easy-crop/react-easy-crop.css";
+import {
+  CREATE_ORDER_MESSAGES,
+  MAX_PHOTO_MB,
+  isAllowedPhotoType,
+  isPhotoOverSizeLimit,
+} from "@/lib/create-order-errors";
 import { assignFileToInput, cropImageToFile } from "@/lib/crop-image";
 
 const CROP_ASPECT = 4 / 5;
-const MAX_PHOTO_BYTES = 8 * 1024 * 1024;
-const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/jpg"]);
 
 type PhotoCropFieldProps = {
   id: string;
@@ -24,6 +28,7 @@ export function PhotoCropField({ id, label, pending }: PhotoCropFieldProps) {
   const lastAreaRef = useRef<Area | null>(null);
   const applySeqRef = useRef(0);
   const debounceRef = useRef<number | null>(null);
+  const croppedFileRef = useRef<File | null>(null);
 
   const [sourceUrl, setSourceUrl] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -40,6 +45,30 @@ export function PhotoCropField({ id, label, pending }: PhotoCropFieldProps) {
       if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
     };
   }, []);
+
+  function restoreCroppedFile() {
+    if (!croppedFileRef.current) return;
+    assignFileToInput(submitRef.current, croppedFileRef.current);
+  }
+
+  // Browsers clear <input type="file"> after submit. Put the cropped File
+  // back before FormData is built so Try again can resubmit the same photo.
+  useEffect(() => {
+    const form = submitRef.current?.form;
+    if (!form) return;
+
+    function onSubmitCapture() {
+      restoreCroppedFile();
+    }
+
+    form.addEventListener("submit", onSubmitCapture, true);
+    return () => form.removeEventListener("submit", onSubmitCapture, true);
+  }, []);
+
+  useEffect(() => {
+    if (pending) return;
+    restoreCroppedFile();
+  }, [pending]);
 
   function replaceSourceUrl(next: string | null) {
     if (sourceUrlRef.current) URL.revokeObjectURL(sourceUrlRef.current);
@@ -71,6 +100,7 @@ export function PhotoCropField({ id, label, pending }: PhotoCropFieldProps) {
     setCrop({ x: 0, y: 0 });
     setZoom(1);
     setCropError(null);
+    croppedFileRef.current = null;
     if (pickerRef.current) pickerRef.current.value = "";
     clearSubmitFile();
   }
@@ -85,17 +115,18 @@ export function PhotoCropField({ id, label, pending }: PhotoCropFieldProps) {
       resetPhoto();
       return;
     }
-    if (!ALLOWED_TYPES.has(file.type)) {
-      setCropError("Please upload a JPG, PNG, or WebP photo.");
+    if (!isAllowedPhotoType(file.type)) {
+      setCropError(CREATE_ORDER_MESSAGES.photoType);
       return;
     }
-    if (file.size > MAX_PHOTO_BYTES) {
-      setCropError("That photo is a bit large — please use a file under 8 MB.");
+    if (isPhotoOverSizeLimit(file.size)) {
+      setCropError(CREATE_ORDER_MESSAGES.photoTooLarge);
       return;
     }
 
     applySeqRef.current += 1;
     lastAreaRef.current = null;
+    croppedFileRef.current = null;
     replacePreviewUrl(null);
     clearSubmitFile();
     replaceSourceUrl(URL.createObjectURL(file));
@@ -114,6 +145,7 @@ export function PhotoCropField({ id, label, pending }: PhotoCropFieldProps) {
     try {
       const cropped = await cropImageToFile(src, area, fileNameRef.current ?? "photo.jpg");
       if (seq !== applySeqRef.current) return;
+      croppedFileRef.current = cropped;
       assignFileToInput(submitRef.current, cropped);
       replacePreviewUrl(URL.createObjectURL(cropped));
       setCropError(null);
@@ -141,7 +173,9 @@ export function PhotoCropField({ id, label, pending }: PhotoCropFieldProps) {
         whole face visible. Face the camera if you can. Skip sunglasses, hats
         that hide the hairline, or photos with other people in the frame.
       </p>
-      <p className="text-xs text-ink-soft">JPG, PNG, or WebP, up to 8 MB. You can crop after you upload.</p>
+      <p className="text-xs text-ink-soft">
+        JPG, PNG, or WebP, up to {MAX_PHOTO_MB} MB. You can crop after you upload.
+      </p>
 
       <input
         id={`photo-picker-${id}`}
@@ -156,14 +190,9 @@ export function PhotoCropField({ id, label, pending }: PhotoCropFieldProps) {
         name="photo"
         type="file"
         accept="image/jpeg,image/png,image/webp"
-        required
         className="sr-only"
         data-cropped={previewUrl ? "true" : "false"}
         tabIndex={-1}
-        onInvalid={(event) => {
-          event.preventDefault();
-          setCropError("Please add a photo and crop it to your child's face.");
-        }}
       />
 
       {!sourceUrl ? (

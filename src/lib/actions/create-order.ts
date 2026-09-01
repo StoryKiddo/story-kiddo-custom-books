@@ -4,6 +4,12 @@
  *
  * If Supabase env vars are missing, we still complete the flow in "demo mode"
  * so the frontend can be tried without a live project.
+ *
+ * Expected failures are returned as `{ error }` so the form stays mounted.
+ * Unexpected throws are caught and mapped to a specific message — except
+ * Next's `redirect()`, which must be rethrown. If the order and children
+ * are already saved, later hiccups redirect to the confirmation page
+ * instead of looking like a lost order.
  */
 
 "use server";
@@ -11,6 +17,14 @@
 import { randomUUID } from "node:crypto";
 import { after } from "next/server";
 import { redirect } from "next/navigation";
+import {
+  CREATE_ORDER_MESSAGES,
+  isAllowedPhotoType,
+  isNextRedirectError,
+  isPhotoOverSizeLimit,
+  messageForCreateOrderFailure,
+  messageForPhotoUploadFailure,
+} from "@/lib/create-order-errors";
 import { formatBookTitle, MAX_CHILDREN_PER_BOOK } from "@/lib/orders";
 import { generateStoryPages, isAnthropicConfigured } from "@/lib/generate-story";
 import {
@@ -32,9 +46,6 @@ import { getTrackBySlug, type Track } from "@/lib/tracks";
 export type CreateOrderState = {
   error?: string;
 } | null;
-
-const MAX_PHOTO_BYTES = 8 * 1024 * 1024;
-const ALLOWED_PHOTO_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/jpg"]);
 
 function asString(value: FormDataEntryValue | null): string {
   return typeof value === "string" ? value.trim() : "";
@@ -66,31 +77,31 @@ function parseChildren(
   const storyType = parseStoryType(asString(formData.get("storyType")));
 
   if (names.length < 1 || names.length > MAX_CHILDREN_PER_BOOK) {
-    return { error: "Please add between 1 and 4 children to this book." };
+    return { error: CREATE_ORDER_MESSAGES.childCount };
   }
   if (ages.length !== names.length || photos.length !== names.length) {
-    return { error: "Each child needs a name, age, and photo." };
+    return { error: CREATE_ORDER_MESSAGES.childIncomplete };
   }
 
   const children: ParsedChild[] = [];
   for (let i = 0; i < names.length; i++) {
     const name = names[i];
     if (name.length < 1 || name.length > 40) {
-      return { error: "Please enter each child's first name (up to 40 characters)." };
+      return { error: CREATE_ORDER_MESSAGES.nameInvalid };
     }
     const age = Number.parseInt(ages[i] ?? "", 10);
     if (!Number.isInteger(age) || age < 0 || age > 12) {
-      return { error: "Please enter an age between 0 and 12 for each child." };
+      return { error: CREATE_ORDER_MESSAGES.ageInvalid };
     }
     const photo = photos[i];
     if (!(photo instanceof File) || photo.size === 0) {
-      return { error: "Please upload a photo of each child." };
+      return { error: CREATE_ORDER_MESSAGES.photoMissing };
     }
-    if (photo.size > MAX_PHOTO_BYTES) {
-      return { error: "That photo is a bit large — please use a file under 8 MB." };
+    if (isPhotoOverSizeLimit(photo.size)) {
+      return { error: CREATE_ORDER_MESSAGES.photoTooLarge };
     }
-    if (!ALLOWED_PHOTO_TYPES.has(photo.type)) {
-      return { error: "Please upload a JPG, PNG, or WebP photo." };
+    if (!isAllowedPhotoType(photo.type)) {
+      return { error: CREATE_ORDER_MESSAGES.photoType };
     }
     children.push({
       name,
@@ -111,12 +122,22 @@ export async function createOrder(
   _prevState: CreateOrderState,
   formData: FormData,
 ): Promise<CreateOrderState> {
+  try {
+    return await submitCreateOrder(formData);
+  } catch (error) {
+    if (isNextRedirectError(error)) throw error;
+    console.error("createOrder failed", error);
+    return { error: messageForCreateOrderFailure(error) };
+  }
+}
+
+async function submitCreateOrder(formData: FormData): Promise<CreateOrderState> {
   const trackSlug = asString(formData.get("track"));
   const parsed = parseChildren(formData);
 
   const track = getTrackBySlug(trackSlug);
   if (!track) {
-    return { error: "Please choose an educational theme before continuing." };
+    return { error: CREATE_ORDER_MESSAGES.themeMissing };
   }
 
   if ("error" in parsed) {
@@ -142,7 +163,7 @@ export async function createOrder(
 
   const supabase = createAdminSupabaseClient();
   if (!supabase) {
-    return { error: "Supabase is not configured. Add the keys from .env.example to .env.local." };
+    return { error: CREATE_ORDER_MESSAGES.database };
   }
 
   const { data: trackRow, error: trackError } = await supabase
@@ -152,10 +173,7 @@ export async function createOrder(
     .single();
 
   if (trackError || !trackRow) {
-    return {
-      error:
-        "We couldn't find that theme in the database. Run the SQL in supabase/migrations/ on your project.",
-    };
+    return { error: CREATE_ORDER_MESSAGES.themeNotInDb };
   }
 
   const { data: customer, error: customerError } = await supabase
@@ -165,7 +183,7 @@ export async function createOrder(
     .single();
 
   if (customerError || !customer) {
-    return { error: "We couldn't save this order. Please try again in a moment." };
+    return { error: CREATE_ORDER_MESSAGES.database };
   }
 
   const uploaded: {
@@ -178,7 +196,12 @@ export async function createOrder(
   }[] = [];
   for (const child of children) {
     const photoPath = `${customer.id}/${randomUUID()}.${photoExtension(child.photo)}`;
-    const photoBuffer = Buffer.from(await child.photo.arrayBuffer());
+    let photoBuffer: Buffer;
+    try {
+      photoBuffer = Buffer.from(await child.photo.arrayBuffer());
+    } catch (error) {
+      return { error: messageForCreateOrderFailure(error) };
+    }
 
     const { error: uploadError } = await supabase.storage
       .from("child-photos")
@@ -188,7 +211,7 @@ export async function createOrder(
       });
 
     if (uploadError) {
-      return { error: "We couldn't upload that photo. Please try a different image." };
+      return { error: messageForPhotoUploadFailure(uploadError) };
     }
 
     uploaded.push({
@@ -212,44 +235,61 @@ export async function createOrder(
     .single();
 
   if (orderError || !order) {
-    return { error: "We saved the photo but couldn't create the order. Please try again." };
+    return { error: CREATE_ORDER_MESSAGES.database };
   }
 
-  const { error: childrenError } = await supabase.from("book_children").insert(
-    uploaded.map((child, index) => ({
-      order_id: order.id,
-      child_name: child.name,
-      child_age: child.age,
-      photo_path: child.photoPath,
-      sort_order: index,
-      interests: child.interestIds,
-      custom_interest: child.customInterest,
-      personal_note: child.personalNote,
-    })),
-  );
-
-  if (childrenError) {
-    return { error: "The order was created, but we couldn't save the children. Please try again." };
-  }
-
-  // Stub book row — story text is filled in after redirect when Anthropic is configured.
-  const { data: book, error: bookError } = await supabase.from("books").insert({
+  const childRows = uploaded.map((child, index) => ({
     order_id: order.id,
-    title: formatBookTitle(
-      uploaded.map((child) => ({ name: child.name, age: child.age })),
-      track.name,
-    ),
-    status: "pending",
-    story_type: storyType,
-  }).select("id").single();
+    child_name: child.name,
+    child_age: child.age,
+    photo_path: child.photoPath,
+    sort_order: index,
+    interests: child.interestIds,
+    custom_interest: child.customInterest,
+    personal_note: child.personalNote,
+  }));
 
-  if (bookError || !book) {
-    return { error: "The order was created, but we couldn't start the book yet. Please contact us." };
+  let { error: childrenError } = await supabase.from("book_children").insert(childRows);
+  if (childrenError) {
+    const retry = await supabase.from("book_children").insert(childRows);
+    childrenError = retry.error;
+  }
+  if (childrenError) {
+    return { error: CREATE_ORDER_MESSAGES.childrenSave };
   }
 
-  if (isAnthropicConfigured()) {
-    await supabase.from("books").update({ status: "generating" }).eq("id", book.id);
-    scheduleStoryGeneration(book.id, track, uploaded, storyType);
+  // Order + photos + children are durable from here. Anything after this
+  // (book row, story generation) must not send the customer back to a
+  // blank form — redirect to the confirmation page instead.
+  try {
+    const bookPayload = {
+      order_id: order.id,
+      title: formatBookTitle(
+        uploaded.map((child) => ({ name: child.name, age: child.age })),
+        track.name,
+      ),
+      status: "pending" as const,
+      story_type: storyType,
+    };
+
+    let { data: book, error: bookError } = await supabase
+      .from("books")
+      .insert(bookPayload)
+      .select("id")
+      .single();
+
+    if (bookError || !book) {
+      const retry = await supabase.from("books").insert(bookPayload).select("id").single();
+      book = retry.data;
+    }
+
+    if (book && isAnthropicConfigured()) {
+      await supabase.from("books").update({ status: "generating" }).eq("id", book.id);
+      scheduleStoryGeneration(book.id, track, uploaded, storyType);
+    }
+  } catch (error) {
+    if (isNextRedirectError(error)) throw error;
+    console.error("createOrder failed after the order was saved", error);
   }
 
   redirect(`/order/${order.id}`);
@@ -272,18 +312,22 @@ function scheduleStoryGeneration(
     const admin = createAdminSupabaseClient();
     if (!admin) return;
 
+    const childInputs = children.map((child) => ({
+      name: child.name,
+      age: child.age,
+      interests: child.interestIds,
+      customInterest: child.customInterest,
+      personalNote: child.personalNote,
+    }));
+
     try {
-      const story = await generateStoryPages(
-        track,
-        children.map((child) => ({
-          name: child.name,
-          age: child.age,
-          interests: child.interestIds,
-          customInterest: child.customInterest,
-          personalNote: child.personalNote,
-        })),
-        storyType,
-      );
+      let story;
+      try {
+        story = await generateStoryPages(track, childInputs, storyType);
+      } catch (error) {
+        console.error("Story generation failed, retrying once", error);
+        story = await generateStoryPages(track, childInputs, storyType);
+      }
       const pages = story.pages;
       const paintPictures = isOpenAIConfigured();
       const { error: storyError } = await admin
@@ -309,14 +353,27 @@ function scheduleStoryGeneration(
       if (!paintPictures) return;
 
       try {
-        const illustrations = await illustrateBook({
-          bookId,
-          track,
-          pages,
-          children,
-          pagePlan: story.pagePlan,
-          continuity: story.continuity,
-        });
+        let illustrations;
+        try {
+          illustrations = await illustrateBook({
+            bookId,
+            track,
+            pages,
+            children,
+            pagePlan: story.pagePlan,
+            continuity: story.continuity,
+          });
+        } catch (error) {
+          console.error("Illustration generation failed, retrying once", error);
+          illustrations = await illustrateBook({
+            bookId,
+            track,
+            pages,
+            children,
+            pagePlan: story.pagePlan,
+            continuity: story.continuity,
+          });
+        }
         const previewOk = previewGenerationSucceeded(illustrations, pages.length);
         await admin
           .from("books")

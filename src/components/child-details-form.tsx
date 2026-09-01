@@ -6,10 +6,18 @@
  *
  * Each photo is cropped in the browser first. The cropped file is what the
  * `createOrder` Server Action receives and uploads to Supabase Storage.
+ *
+ * On failure the form stays mounted: names, ages, notes, story type, and
+ * cropped photos remain, with a specific error and a Try again submit.
  */
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useRef, useState, type FormEvent } from "react";
 import { PhotoCropField } from "@/components/photo-crop-field";
+import {
+  CREATE_ORDER_MESSAGES,
+  isPayloadOverActionLimit,
+  isPhotoOverSizeLimit,
+} from "@/lib/create-order-errors";
 import { createOrder, type CreateOrderState } from "@/lib/actions/create-order";
 import { MAX_CHILDREN_PER_BOOK } from "@/lib/orders";
 import {
@@ -28,12 +36,24 @@ import type { Track } from "@/lib/tracks";
 
 type ChildDraft = {
   id: string;
+  name: string;
+  age: string;
+  customInterest: string;
+  personalNote: string;
   interestIds: InterestId[];
   showCustomInterest: boolean;
 };
 
 function emptyChild(id: string): ChildDraft {
-  return { id, interestIds: [], showCustomInterest: false };
+  return {
+    id,
+    name: "",
+    age: "",
+    customInterest: "",
+    personalNote: "",
+    interestIds: [],
+    showCustomInterest: false,
+  };
 }
 
 export function ChildDetailsForm({ track }: { track: Track }) {
@@ -44,6 +64,15 @@ export function ChildDetailsForm({ track }: { track: Track }) {
   const [children, setChildren] = useState<ChildDraft[]>([emptyChild("1")]);
   const [nextId, setNextId] = useState(2);
   const [storyType, setStoryType] = useState<StoryTypeId>(DEFAULT_STORY_TYPE);
+  const [clientError, setClientError] = useState<string | null>(null);
+  const errorRef = useRef<HTMLDivElement>(null);
+
+  const errorMessage = clientError ?? state?.error ?? null;
+
+  useEffect(() => {
+    if (!errorMessage) return;
+    errorRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [errorMessage]);
 
   function addChild() {
     if (children.length >= MAX_CHILDREN_PER_BOOK) return;
@@ -62,8 +91,43 @@ export function ChildDetailsForm({ track }: { track: Track }) {
     );
   }
 
+  function onSubmit(event: FormEvent<HTMLFormElement>) {
+    const photos = Array.from(
+      event.currentTarget.querySelectorAll<HTMLInputElement>('input[name="photo"]'),
+    );
+    const files = photos
+      .map((input) => input.files?.[0])
+      .filter((file): file is File => Boolean(file && file.size > 0));
+
+    if (files.length !== children.length) {
+      event.preventDefault();
+      setClientError(CREATE_ORDER_MESSAGES.photoMissing);
+      return;
+    }
+
+    if (files.some((file) => isPhotoOverSizeLimit(file.size))) {
+      event.preventDefault();
+      setClientError(CREATE_ORDER_MESSAGES.photoTooLarge);
+      return;
+    }
+
+    const totalBytes = files.reduce((sum, file) => sum + file.size, 0);
+    if (isPayloadOverActionLimit(totalBytes)) {
+      event.preventDefault();
+      setClientError(CREATE_ORDER_MESSAGES.payloadTooLarge);
+      return;
+    }
+
+    setClientError(null);
+  }
+
   return (
-    <form action={formAction} className="space-y-8">
+    <form
+      action={formAction}
+      onSubmit={onSubmit}
+      aria-busy={pending}
+      className="space-y-8"
+    >
       <input type="hidden" name="track" value={track.slug} />
       <input type="hidden" name="storyType" value={storyType} />
 
@@ -77,6 +141,7 @@ export function ChildDetailsForm({ track }: { track: Track }) {
             track={track}
             pending={pending}
             onRemove={() => removeChild(child.id)}
+            onPatch={(patch) => patchChild(child.id, patch)}
             onToggleInterest={(interestId) => {
               const selected = child.interestIds.includes(interestId);
               if (selected) {
@@ -139,10 +204,18 @@ export function ChildDetailsForm({ track }: { track: Track }) {
         </div>
       </fieldset>
 
-      {state?.error ? (
-        <p className="rounded-2xl bg-[#f5d0d8] px-4 py-3 text-sm font-semibold text-[#7a2d3d]" role="alert">
-          {state.error}
-        </p>
+      {errorMessage ? (
+        <div
+          ref={errorRef}
+          className="space-y-3 rounded-2xl bg-[#f5d0d8] px-4 py-3"
+          role="alert"
+        >
+          <p className="text-sm font-semibold text-[#7a2d3d]">{errorMessage}</p>
+          <p className="text-xs text-[#7a2d3d]/80">
+            Your details and photos are still here. You can fix anything that needs
+            it, then try again.
+          </p>
+        </div>
       ) : null}
 
       <button
@@ -150,7 +223,7 @@ export function ChildDetailsForm({ track }: { track: Track }) {
         disabled={pending}
         className="rounded-full bg-coral px-8 py-3 text-sm font-semibold text-white shadow-[0_1px_0_rgba(255,255,255,0.2)_inset,0_10px_20px_-8px_rgba(181,78,53,0.7)] transition hover:bg-coral-dark disabled:cursor-wait disabled:opacity-70"
       >
-        {pending ? "Saving your book…" : "Create this book"}
+        {pending ? "Saving your book…" : errorMessage ? "Try again" : "Create this book"}
       </button>
     </form>
   );
@@ -163,6 +236,7 @@ function ChildCard({
   track,
   pending,
   onRemove,
+  onPatch,
   onToggleInterest,
   onToggleCustom,
 }: {
@@ -172,6 +246,7 @@ function ChildCard({
   track: Track;
   pending: boolean;
   onRemove: () => void;
+  onPatch: (patch: Partial<ChildDraft>) => void;
   onToggleInterest: (id: InterestId) => void;
   onToggleCustom: () => void;
 }) {
@@ -181,7 +256,6 @@ function ChildCard({
 
   return (
     <fieldset
-      disabled={pending}
       aria-labelledby={headingId}
       className="rounded-3xl border border-rule bg-white/60 p-5 sm:p-6"
     >
@@ -197,7 +271,8 @@ function ChildCard({
           <button
             type="button"
             onClick={onRemove}
-            className="text-sm font-semibold text-ink-soft underline underline-offset-4 hover:text-ink"
+            disabled={pending}
+            className="text-sm font-semibold text-ink-soft underline underline-offset-4 hover:text-ink disabled:opacity-70"
           >
             Remove
           </button>
@@ -214,6 +289,8 @@ function ChildCard({
             maxLength={40}
             autoComplete="given-name"
             placeholder="Dylan"
+            value={child.name}
+            onChange={(event) => onPatch({ name: event.target.value })}
             className="w-full rounded-2xl border border-rule bg-cream px-4 py-3 text-ink outline-none ring-coral/30 placeholder:text-ink-soft focus:ring-2"
           />
         </label>
@@ -227,6 +304,8 @@ function ChildCard({
             min={0}
             max={12}
             placeholder="4"
+            value={child.age}
+            onChange={(event) => onPatch({ age: event.target.value })}
             className="w-full rounded-2xl border border-rule bg-cream px-4 py-3 text-ink outline-none ring-coral/30 placeholder:text-ink-soft focus:ring-2"
           />
           {index === 0 ? (
@@ -290,6 +369,8 @@ function ChildCard({
               type="text"
               maxLength={MAX_CUSTOM_INTEREST_CHARS}
               placeholder={CUSTOM_INTEREST_PLACEHOLDER}
+              value={child.customInterest}
+              onChange={(event) => onPatch({ customInterest: event.target.value })}
               className="w-full rounded-2xl border border-rule bg-cream px-4 py-3 text-ink outline-none ring-coral/30 placeholder:text-ink-soft focus:ring-2"
             />
           </label>
@@ -308,6 +389,8 @@ function ChildCard({
           rows={3}
           maxLength={MAX_PERSONAL_NOTE_CHARS}
           placeholder={PERSONAL_NOTE_PLACEHOLDER}
+          value={child.personalNote}
+          onChange={(event) => onPatch({ personalNote: event.target.value })}
           className="w-full rounded-2xl border border-rule bg-cream px-4 py-3 text-ink outline-none ring-coral/30 placeholder:text-ink-soft focus:ring-2"
         />
       </label>
