@@ -17,6 +17,7 @@ import {
   illustrateBook,
   isOpenAIConfigured,
 } from "@/lib/generate-illustrations";
+import { previewGenerationSucceeded } from "@/lib/illustration-prompt";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { getTrackBySlug, type Track } from "@/lib/tracks";
@@ -235,6 +236,7 @@ function scheduleStoryGeneration(
           status: paintPictures ? "illustrating" : "complete",
           pages,
           page_count: pages.length,
+          preview_generated: false,
         })
         .eq("id", bookId);
 
@@ -253,12 +255,13 @@ function scheduleStoryGeneration(
           pages,
           children,
         });
-        const anyFailed = illustrations.some((path) => !path);
+        const previewOk = previewGenerationSucceeded(illustrations, pages.length);
         await admin
           .from("books")
           .update({
             illustrations,
-            status: anyFailed ? "failed" : "complete",
+            preview_generated: previewOk,
+            status: previewOk ? "complete" : "failed",
           })
           .eq("id", bookId);
       } catch (error) {

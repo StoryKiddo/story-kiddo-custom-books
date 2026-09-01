@@ -24,6 +24,7 @@ export type OrderSummary = {
   bookStatus: BookStatus;
   pages: string[] | null;
   illustrationUrls: (string | null)[] | null;
+  previewGenerated: boolean;
 };
 
 function asPages(value: unknown): string[] | null {
@@ -117,6 +118,7 @@ export async function getOrderSummary(
       bookStatus: "pending",
       pages: null,
       illustrationUrls: null,
+      previewGenerated: false,
     };
   }
 
@@ -157,7 +159,7 @@ export async function getOrderSummary(
 
   const { data: book } = await supabase
     .from("books")
-    .select("status, pages, illustrations, title")
+    .select("status, pages, illustrations, title, preview_generated")
     .eq("order_id", order.id)
     .maybeSingle();
 
@@ -175,5 +177,6 @@ export async function getOrderSummary(
     bookStatus,
     pages,
     illustrationUrls,
+    previewGenerated: Boolean(book?.preview_generated),
   };
 }

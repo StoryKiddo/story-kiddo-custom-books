@@ -1,6 +1,7 @@
 /**
- * Server-only helper that paints one illustration per story page with gpt-image-2.
- * Never import this file from a Client Component.
+ * Server-only helper that paints watermarked preview illustrations for the
+ * first two story pages with gpt-image-2. Never import this file from a
+ * Client Component.
  */
 
 import "server-only";
@@ -11,8 +12,10 @@ import {
   buildImageEditRequestFields,
   buildIllustrationPrompt,
   describeIllustrationApiError,
+  previewIllustrationCount,
   type IllustrationChild,
 } from "@/lib/illustration-prompt";
+import { applyPreviewWatermark } from "@/lib/illustration-watermark";
 
 const ILLUSTRATION_BUCKET = "book-illustrations";
 const PHOTO_BUCKET = "child-photos";
@@ -129,8 +132,9 @@ export async function illustrateBook(options: {
   const references = await downloadReferencePhotos(options.children);
   const referenceImages = references.map((entry) => entry.file);
   const illustrations: (string | null)[] = options.pages.map(() => null);
+  const previewCount = previewIllustrationCount(options.pages.length);
 
-  for (let i = 0; i < options.pages.length; i++) {
+  for (let i = 0; i < previewCount; i++) {
     try {
       const png = await generatePageIllustration({
         track: options.track,
@@ -140,10 +144,11 @@ export async function illustrateBook(options: {
         pageIndex: i,
         pageCount: options.pages.length,
       });
+      const watermarked = await applyPreviewWatermark(png);
       const path = `${options.bookId}/page-${String(i + 1).padStart(2, "0")}.png`;
       const { error: uploadError } = await supabase.storage
         .from(ILLUSTRATION_BUCKET)
-        .upload(path, png, {
+        .upload(path, watermarked, {
           contentType: "image/png",
           upsert: true,
         });

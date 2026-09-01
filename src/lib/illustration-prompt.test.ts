@@ -4,9 +4,13 @@ import { getTrackBySlug } from "./tracks.ts";
 import {
   ART_STYLE,
   ILLUSTRATION_MODEL,
+  PREVIEW_ILLUSTRATION_COUNT,
   buildImageEditRequestFields,
   buildIllustrationPrompt,
   describeIllustrationApiError,
+  illustrationSlot,
+  previewGenerationSucceeded,
+  previewIllustrationCount,
   type IllustrationChild,
 } from "./illustration-prompt.ts";
 
@@ -109,5 +113,36 @@ describe("describeIllustrationApiError", () => {
 
     const other = describeIllustrationApiError(new Error("rate limit exceeded"));
     assert.equal(other.isAccessError, false);
+  });
+});
+
+describe("preview illustration limit", () => {
+  it("only paints the first two pages, even for a long book", () => {
+    assert.equal(PREVIEW_ILLUSTRATION_COUNT, 2);
+    assert.equal(previewIllustrationCount(12), 2);
+    assert.equal(previewIllustrationCount(26), 2);
+    assert.equal(previewIllustrationCount(1), 1);
+    assert.equal(previewIllustrationCount(0), 0);
+  });
+
+  it("treats preview as done only when those first pages have images", () => {
+    assert.equal(previewGenerationSucceeded([null, null, null], 8), false);
+    assert.equal(
+      previewGenerationSucceeded(["book/page-01.png", null, null], 8),
+      false,
+    );
+    assert.equal(
+      previewGenerationSucceeded(["book/page-01.png", "book/page-02.png", null], 8),
+      true,
+    );
+    assert.equal(previewGenerationSucceeded(["book/page-01.png"], 1), true);
+  });
+
+  it("shows a full-book placeholder on pages after the preview", () => {
+    assert.equal(illustrationSlot(0, true, false), "image");
+    assert.equal(illustrationSlot(1, false, true), "loading");
+    assert.equal(illustrationSlot(2, false, true), "full-book");
+    assert.equal(illustrationSlot(5, false, false), "full-book");
+    assert.equal(illustrationSlot(0, false, false), "none");
   });
 });

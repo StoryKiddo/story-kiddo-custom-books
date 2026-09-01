@@ -10,6 +10,11 @@ export const ILLUSTRATION_SIZE = "1024x1536" as const;
 export const ILLUSTRATION_QUALITY = "medium" as const;
 export const ILLUSTRATION_OUTPUT_FORMAT = "png" as const;
 
+/** Only the first N pages are painted before payment. Remaining pages stay empty. */
+export const PREVIEW_ILLUSTRATION_COUNT = 2;
+
+export type IllustrationSlot = "image" | "loading" | "full-book" | "none";
+
 export const ART_STYLE = `3D animated children's-book illustration, like a high-quality computer-animated film still.
 Rounded, appealing character design; soft cinematic lighting; rich, friendly colors; gentle materials and rounded forms.
 Not a photograph, not photorealistic live-action, and not a flat 2D drawing.`;
@@ -137,4 +142,32 @@ export function describeIllustrationApiError(error: unknown): IllustrationApiErr
   }
 
   return { isAccessError: false, message: raw };
+}
+
+export function previewIllustrationCount(pageCount: number): number {
+  return Math.min(PREVIEW_ILLUSTRATION_COUNT, Math.max(0, pageCount));
+}
+
+export function isPreviewIllustrationPage(index: number): boolean {
+  return index >= 0 && index < PREVIEW_ILLUSTRATION_COUNT;
+}
+
+export function previewGenerationSucceeded(
+  illustrations: (string | null)[],
+  pageCount: number,
+): boolean {
+  const n = previewIllustrationCount(pageCount);
+  if (n === 0) return false;
+  return illustrations.slice(0, n).every((path) => Boolean(path));
+}
+
+export function illustrationSlot(
+  index: number,
+  hasImage: boolean,
+  illustrating: boolean,
+): IllustrationSlot {
+  if (!isPreviewIllustrationPage(index)) return "full-book";
+  if (hasImage) return "image";
+  if (illustrating) return "loading";
+  return "none";
 }
