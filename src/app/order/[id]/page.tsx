@@ -69,17 +69,20 @@ export default async function OrderPage({
           {illustrating || waitingOnStory ? <RefreshWhileGenerating /> : null}
           {order.bookStatus === "failed" && !order.illustrationUrls?.some(Boolean) ? (
             <p className="mt-8 rounded-2xl border border-rule bg-cream/80 px-5 py-4 text-sm text-ink-soft">
-              Your story is ready below. We couldn&apos;t finish the pictures just
-              yet — please try creating the book again in a moment.
+              Your order was saved! Your story is ready below. We&apos;re still
+              finishing the pictures — check back in a moment.
             </p>
           ) : null}
           <StoryPages pages={storyPages} illustrating={illustrating} />
         </>
       ) : order.bookStatus === "failed" ? (
-        <p className="mt-8 rounded-2xl border border-rule bg-cream/80 px-5 py-4 text-sm text-ink-soft">
-          We saved your order, but we couldn&apos;t finish writing the story just
-          yet. Please try creating the book again in a moment.
-        </p>
+        <>
+          <RefreshWhileGenerating />
+          <p className="mt-8 rounded-2xl border border-rule bg-cream/80 px-5 py-4 text-sm text-ink-soft">
+            Your order was saved! We&apos;re finishing up your story — check back
+            in a moment.
+          </p>
+        </>
       ) : (
         <>
           {waitingOnStory ? <RefreshWhileGenerating /> : null}
