@@ -29,7 +29,7 @@ Open [http://localhost:3000](http://localhost:3000).
 2. In the SQL editor, run the files in `supabase/migrations/` in order. They create the tables (including `book_children` for 1–4 children per order), seed the tracks, and add a private `child-photos` storage bucket.
 3. Copy **Project URL**, **anon key**, and **service role key** from Project Settings → API into `.env.local`.
 4. Optional: add `ANTHROPIC_API_KEY` from the [Anthropic console](https://console.anthropic.com/) so story text is generated after checkout.
-5. Optional: add `OPENAI_API_KEY` from the [OpenAI platform](https://platform.openai.com/) so page illustrations are generated after the story. Run `supabase/migrations/20260831100000_book_illustrations.sql` for the illustrations bucket.
+5. Optional: add `OPENAI_API_KEY` from the [OpenAI platform](https://platform.openai.com/) so page illustrations are generated with `gpt-image-2` after the story. That model may require organization verification. Run `supabase/migrations/20260831100000_book_illustrations.sql` for the illustrations bucket.
 
 The service role key is used only on the server (see `src/lib/supabase/admin.ts`) so photo uploads and order inserts can bypass Row Level Security. Do not prefix it with `NEXT_PUBLIC_`.
 
@@ -50,6 +50,7 @@ The service role key is used only on the server (see `src/lib/supabase/admin.ts`
 
 ```bash
 npm run dev      # local development
+npm run test     # illustration prompt / gpt-image-2 request checks
 npm run lint     # ESLint
 npm run build    # production build
 ```

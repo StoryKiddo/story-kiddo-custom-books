@@ -7,7 +7,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "node --test --experimental-strip-types src/lib/illustration-prompt.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.122.0",
