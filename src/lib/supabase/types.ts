@@ -57,6 +57,7 @@ export type BookRow = {
   page_count: number | null;
   pages: string[] | null;
   illustrations: (string | null)[] | null;
+  preview_generated: boolean;
   created_at: string;
 };
 

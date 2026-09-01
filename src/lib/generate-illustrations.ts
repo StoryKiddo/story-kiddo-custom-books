@@ -1,27 +1,26 @@
 /**
- * Server-only helper that paints one illustration per story page with gpt-image-1.
- * Never import this file from a Client Component.
+ * Server-only helper that paints watermarked preview illustrations for the
+ * first two story pages with gpt-image-2. Never import this file from a
+ * Client Component.
  */
 
 import "server-only";
 import OpenAI, { toFile } from "openai";
 import type { Track } from "@/lib/tracks";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
+import {
+  buildImageEditRequestFields,
+  buildIllustrationPrompt,
+  describeIllustrationApiError,
+  previewIllustrationCount,
+  type IllustrationChild,
+} from "@/lib/illustration-prompt";
+import { applyPreviewWatermark } from "@/lib/illustration-watermark";
 
-const ILLUSTRATION_MODEL = "gpt-image-1";
 const ILLUSTRATION_BUCKET = "book-illustrations";
 const PHOTO_BUCKET = "child-photos";
 
-const ART_STYLE = `Warm, soft pencil-sketch watercolor children's-book illustration on cream paper.
-Not a photograph, not photorealistic, not 3D CGI.
-Gentle colors, visible pencil lines, light watercolor washes.
-Cozy read-aloud picture-book mood.`;
-
-export type IllustrationChild = {
-  name: string;
-  age: number;
-  photoPath: string;
-};
+export type { IllustrationChild };
 
 export function getOpenAIApiKey(): string | null {
   const key = process.env.OPENAI_API_KEY?.trim();
@@ -42,47 +41,6 @@ function mimeFromPath(path: string): string {
   if (path.endsWith(".png")) return "image/png";
   if (path.endsWith(".webp")) return "image/webp";
   return "image/jpeg";
-}
-
-function buildIllustrationPrompt(
-  track: Track,
-  children: IllustrationChild[],
-  pageText: string,
-  pageIndex: number,
-  pageCount: number,
-): string {
-  const childLines = children
-    .map((child, index) => {
-      const photoNote = `reference image ${index + 1}`;
-      return `${child.name} (age ${child.age}) is the child in ${photoNote}.`;
-    })
-    .join(" ");
-
-  const together =
-    children.length > 1
-      ? `Include every named child together in this scene as consistent illustrated characters. None of them is left out.`
-      : `The named child is the star of this picture.`;
-
-  const letterNote =
-    track.slug === "alphabet"
-      ? `If this page is about a letter, you may paint that single large letter as a hand-lettered picture-book prop in the scene — not a computer font, not a caption overlay.`
-      : `Do not add titles, captions, speech bubbles, watermarks, or paragraphs of text.`;
-
-  return `${ART_STYLE}
-
-This is page ${pageIndex + 1} of ${pageCount} in a personalized picture book.
-Theme: ${track.name}. ${track.description}
-
-${childLines}
-Keep each child's face, hair, skin tone, and features consistent with their reference photo, drawn as an illustrated character (not a photo collage).
-${together}
-
-Scene to illustrate, from the story:
-"""
-${pageText}
-"""
-
-${letterNote}`;
 }
 
 async function downloadReferencePhotos(
@@ -131,16 +89,19 @@ export async function generatePageIllustration(options: {
     options.pageCount,
   );
 
-  const result = await client.images.edit({
-    model: ILLUSTRATION_MODEL,
-    image: options.referenceImages,
-    prompt,
-    size: "1024x1536",
-    quality: "medium",
-    output_format: "png",
-    input_fidelity: "high",
-    n: 1,
-  });
+  let result;
+  try {
+    result = await client.images.edit({
+      ...buildImageEditRequestFields(prompt),
+      image: options.referenceImages,
+    });
+  } catch (error) {
+    const described = describeIllustrationApiError(error);
+    if (described.isAccessError) {
+      console.error(described.message);
+    }
+    throw new Error(described.message);
+  }
 
   const item = result.data?.[0];
   if (item?.b64_json) {
@@ -171,8 +132,9 @@ export async function illustrateBook(options: {
   const references = await downloadReferencePhotos(options.children);
   const referenceImages = references.map((entry) => entry.file);
   const illustrations: (string | null)[] = options.pages.map(() => null);
+  const previewCount = previewIllustrationCount(options.pages.length);
 
-  for (let i = 0; i < options.pages.length; i++) {
+  for (let i = 0; i < previewCount; i++) {
     try {
       const png = await generatePageIllustration({
         track: options.track,
@@ -182,10 +144,11 @@ export async function illustrateBook(options: {
         pageIndex: i,
         pageCount: options.pages.length,
       });
+      const watermarked = await applyPreviewWatermark(png);
       const path = `${options.bookId}/page-${String(i + 1).padStart(2, "0")}.png`;
       const { error: uploadError } = await supabase.storage
         .from(ILLUSTRATION_BUCKET)
-        .upload(path, png, {
+        .upload(path, watermarked, {
           contentType: "image/png",
           upsert: true,
         });
