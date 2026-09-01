@@ -5,19 +5,31 @@
 
 import sharp from "sharp";
 
-export const PREVIEW_WATERMARK_TEXT = "STORY KIDDO PREVIEW";
-export const PREVIEW_WATERMARK_OPACITY = 0.22;
+export const PREVIEW_WATERMARK_TEXT = "STORY KIDDO";
+export const PREVIEW_WATERMARK_OPACITY = 0.28;
+export const PREVIEW_WATERMARK_REPEAT = 3;
 
 export function buildWatermarkSvg(width: number, height: number): string {
-  const tileWidth = 420;
-  const tileHeight = 160;
+  const fontSize = Math.round(Math.min(width, height) * 0.16);
+  const cx = width / 2;
+  const cy = height / 2;
+  const lineGap = Math.max(fontSize * 1.85, height * 0.24);
+  const marks = Array.from({ length: PREVIEW_WATERMARK_REPEAT }, (_, index) => {
+    const offset = index - (PREVIEW_WATERMARK_REPEAT - 1) / 2;
+    const y = cy + offset * lineGap;
+    return `<text x="${cx}" y="${y}" text-anchor="middle" dominant-baseline="middle">${PREVIEW_WATERMARK_TEXT}</text>`;
+  });
+
   return `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <pattern id="story-kiddo-preview" patternUnits="userSpaceOnUse" width="${tileWidth}" height="${tileHeight}" patternTransform="rotate(-32)">
-      <text x="12" y="88" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" fill="white" fill-opacity="${PREVIEW_WATERMARK_OPACITY}" letter-spacing="2">${PREVIEW_WATERMARK_TEXT}</text>
-    </pattern>
-  </defs>
-  <rect width="100%" height="100%" fill="url(#story-kiddo-preview)"/>
+  <g transform="rotate(-28 ${cx} ${cy})"
+     font-family="Arial, Helvetica, sans-serif"
+     font-size="${fontSize}"
+     font-weight="800"
+     fill="white"
+     fill-opacity="${PREVIEW_WATERMARK_OPACITY}"
+     letter-spacing="${Math.round(fontSize * 0.04)}">
+    ${marks.join("\n    ")}
+  </g>
 </svg>`;
 }
 
