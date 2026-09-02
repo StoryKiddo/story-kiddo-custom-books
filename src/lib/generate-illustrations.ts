@@ -15,7 +15,7 @@ import {
   previewIllustrationCount,
   type IllustrationChild,
 } from "@/lib/illustration-prompt";
-import { applyPreviewWatermark } from "@/lib/illustration-watermark";
+import { stampCustomerPreview } from "@/lib/illustration-watermark";
 import type { BookContinuity, PagePlanItem } from "@/lib/story-blueprint";
 
 const ILLUSTRATION_BUCKET = "book-illustrations";
@@ -155,7 +155,7 @@ export async function illustrateBook(options: {
         sceneDescription: options.pagePlan?.[i]?.scene_description,
         continuity: options.continuity,
       });
-      const watermarked = await applyPreviewWatermark(png);
+      const watermarked = await stampCustomerPreview(png);
       const path = `${options.bookId}/page-${String(i + 1).padStart(2, "0")}.png`;
       const { error: uploadError } = await supabase.storage
         .from(ILLUSTRATION_BUCKET)
