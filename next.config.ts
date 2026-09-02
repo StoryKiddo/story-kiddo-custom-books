@@ -8,6 +8,11 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "36mb",
     },
   },
+  // The preview watermark reads this TTF at runtime and embeds it in the SVG
+  // so serverless hosts without system fonts still paint STORY KIDDO.
+  outputFileTracingIncludes: {
+    "/*": ["./src/lib/fonts/**/*", "./fonts/**/*"],
+  },
   async redirects() {
     return [
       {
