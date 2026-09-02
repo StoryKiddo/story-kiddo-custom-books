@@ -1,7 +1,8 @@
 /**
- * Server-only helper that paints watermarked preview illustrations for the
- * first two story pages with gpt-image-2. Never import this file from a
- * Client Component.
+ * Server-only helper that paints illustrations for the first two story pages
+ * with gpt-image-2. The image model returns a clean master. A watermarked
+ * preview derivative is created afterwards and stored separately. Never import
+ * this file from a Client Component.
  */
 
 import "server-only";
@@ -15,7 +16,11 @@ import {
   previewIllustrationCount,
   type IllustrationChild,
 } from "@/lib/illustration-prompt";
-import { stampCustomerPreview } from "@/lib/illustration-watermark";
+import {
+  masterIllustrationObjectPath,
+  previewIllustrationObjectPath,
+  stampCustomerPreview,
+} from "@/lib/illustration-watermark";
 import type { BookContinuity, PagePlanItem } from "@/lib/story-blueprint";
 
 const ILLUSTRATION_BUCKET = "book-illustrations";
@@ -145,7 +150,7 @@ export async function illustrateBook(options: {
 
   for (let i = 0; i < previewCount; i++) {
     try {
-      const png = await generatePageIllustration({
+      const masterPng = await generatePageIllustration({
         track: options.track,
         children: options.children,
         referenceImages,
@@ -155,18 +160,32 @@ export async function illustrateBook(options: {
         sceneDescription: options.pagePlan?.[i]?.scene_description,
         continuity: options.continuity,
       });
-      const watermarked = await stampCustomerPreview(png);
-      const path = `${options.bookId}/page-${String(i + 1).padStart(2, "0")}.png`;
-      const { error: uploadError } = await supabase.storage
+      const masterPath = masterIllustrationObjectPath(options.bookId, i);
+      const previewPath = previewIllustrationObjectPath(options.bookId, i);
+      const previewPng = await stampCustomerPreview(masterPng);
+
+      const { error: masterUploadError } = await supabase.storage
         .from(ILLUSTRATION_BUCKET)
-        .upload(path, watermarked, {
+        .upload(masterPath, masterPng, {
           contentType: "image/png",
           upsert: true,
         });
-      if (uploadError) {
-        throw uploadError;
+      if (masterUploadError) {
+        throw masterUploadError;
       }
-      illustrations[i] = path;
+
+      const { error: previewUploadError } = await supabase.storage
+        .from(ILLUSTRATION_BUCKET)
+        .upload(previewPath, previewPng, {
+          contentType: "image/png",
+          upsert: true,
+        });
+      if (previewUploadError) {
+        throw previewUploadError;
+      }
+
+      // Customer-facing books.illustrations always stores the watermarked preview.
+      illustrations[i] = previewPath;
     } catch (error) {
       console.error(`Illustration failed for page ${i + 1}`, error);
     }
