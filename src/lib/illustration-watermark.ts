@@ -1,19 +1,24 @@
 /**
  * Server-side preview watermark. Applied after gpt-image-2 returns a PNG —
  * never asked of the image model, which cannot be trusted to stamp text.
+ *
+ * Sized so "STORY KIDDO" is unmistakable at a glance even when the preview
+ * is shown a few hundred pixels wide on a phone.
  */
 
 import sharp from "sharp";
 
 export const PREVIEW_WATERMARK_TEXT = "STORY KIDDO";
-export const PREVIEW_WATERMARK_OPACITY = 0.28;
+export const PREVIEW_WATERMARK_OPACITY = 0.4;
 export const PREVIEW_WATERMARK_REPEAT = 3;
+/** Fraction of the illustration's shorter edge. */
+const FONT_SIZE_RATIO = 0.28;
 
 export function buildWatermarkSvg(width: number, height: number): string {
-  const fontSize = Math.round(Math.min(width, height) * 0.16);
+  const fontSize = Math.round(Math.min(width, height) * FONT_SIZE_RATIO);
   const cx = width / 2;
   const cy = height / 2;
-  const lineGap = Math.max(fontSize * 1.85, height * 0.24);
+  const lineGap = Math.max(fontSize * 1.7, height * 0.26);
   const marks = Array.from({ length: PREVIEW_WATERMARK_REPEAT }, (_, index) => {
     const offset = index - (PREVIEW_WATERMARK_REPEAT - 1) / 2;
     const y = cy + offset * lineGap;
@@ -21,13 +26,13 @@ export function buildWatermarkSvg(width: number, height: number): string {
   });
 
   return `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
-  <g transform="rotate(-28 ${cx} ${cy})"
-     font-family="Arial, Helvetica, sans-serif"
+  <g transform="rotate(-32 ${cx} ${cy})"
+     font-family="DejaVu Sans, Liberation Sans, Arial, sans-serif"
      font-size="${fontSize}"
-     font-weight="800"
+     font-weight="700"
      fill="white"
      fill-opacity="${PREVIEW_WATERMARK_OPACITY}"
-     letter-spacing="${Math.round(fontSize * 0.04)}">
+     letter-spacing="${Math.round(fontSize * 0.02)}">
     ${marks.join("\n    ")}
   </g>
 </svg>`;

@@ -15,12 +15,17 @@ describe("preview watermark", () => {
     assert.doesNotMatch(svg, /STORY KIDDO PREVIEW/);
     assert.ok(copies.length >= 2 && copies.length <= 3);
     assert.doesNotMatch(svg, /<pattern/i);
-    assert.ok(PREVIEW_WATERMARK_OPACITY >= 0.25 && PREVIEW_WATERMARK_OPACITY <= 0.3);
+    assert.equal(PREVIEW_WATERMARK_OPACITY, 0.4);
     assert.match(svg, /fill="white"/);
-    assert.match(svg, /fill-opacity="0\.2[5-9]"|fill-opacity="0\.3"/);
+    assert.match(svg, /fill-opacity="0\.4"/);
     assert.match(svg, /rotate\(-?\d+/);
     const fontSize = Number(svg.match(/font-size="(\d+)"/)?.[1]);
-    assert.ok(fontSize >= 120, `font-size ${fontSize} should be large on a 1024px-wide page`);
+    // Preview images display well under 1024px wide on phones. 16% of the
+    // short edge (~164px) still looked small; this must stay glance-readable.
+    assert.ok(
+      fontSize >= 280,
+      `font-size ${fontSize} should dominate a 1024×1536 preview page`,
+    );
     assert.match(svg, /font-weight="(700|800|bold)"/);
     assert.match(svg, /width="1024"/);
     assert.match(svg, /height="1536"/);
