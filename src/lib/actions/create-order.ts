@@ -17,6 +17,7 @@
 import { randomUUID } from "node:crypto";
 import { after } from "next/server";
 import { redirect } from "next/navigation";
+import { personalizedBookCopy } from "@/lib/book-title";
 import {
   CREATE_ORDER_MESSAGES,
   isAllowedPhotoType,
@@ -25,7 +26,7 @@ import {
   messageForCreateOrderFailure,
   messageForPhotoUploadFailure,
 } from "@/lib/create-order-errors";
-import { formatBookTitle, MAX_CHILDREN_PER_BOOK } from "@/lib/orders";
+import { MAX_CHILDREN_PER_BOOK } from "@/lib/orders";
 import { generateStoryPages, isAnthropicConfigured } from "@/lib/generate-story";
 import {
   illustrateBook,
@@ -264,10 +265,10 @@ async function submitCreateOrder(formData: FormData): Promise<CreateOrderState> 
   try {
     const bookPayload = {
       order_id: order.id,
-      title: formatBookTitle(
+      title: personalizedBookCopy(
         uploaded.map((child) => ({ name: child.name, age: child.age })),
-        track.name,
-      ),
+        track,
+      ).title,
       status: "pending" as const,
       story_type: storyType,
     };

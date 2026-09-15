@@ -3,6 +3,8 @@
  * Demo orders (ids that start with `demo-`) never hit the database.
  */
 
+import { personalizedBookCopy } from "@/lib/book-title";
+import { orderNumberFromDemoId } from "@/lib/order-number";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { getTrackBySlug, type Track } from "@/lib/tracks";
 import type { BookStatus } from "@/lib/supabase/types";
@@ -18,10 +20,12 @@ export type OrderChild = {
 
 export type OrderSummary = {
   id: string;
+  orderNumber: number;
   children: OrderChild[];
   track: Track;
   isDemo: boolean;
   bookTitle: string;
+  bookSubtitle: string | null;
   status: string;
   bookStatus: BookStatus;
   pages: string[] | null;
@@ -68,11 +72,6 @@ function joinAnd(items: string[]): string {
   return `${items.slice(0, -1).join(", ")}, and ${items[items.length - 1]}`;
 }
 
-export function formatBookTitle(children: OrderChild[], trackName: string): string {
-  const names = children.map((child) => child.name);
-  return `${joinAnd(names)}'s ${trackName} Book`;
-}
-
 export function formatStarsLine(children: OrderChild[], trackName: string): string {
   const bits = children.map((child) => `${child.name}, age ${child.age}`);
   const theme = trackName.toLowerCase();
@@ -102,12 +101,15 @@ export async function getOrderSummary(
       children.push({ name: names[i], age });
     }
 
+    const copy = personalizedBookCopy(children, track);
     return {
       id,
+      orderNumber: orderNumberFromDemoId(id),
       children,
       track,
       isDemo: true,
-      bookTitle: formatBookTitle(children, track.name),
+      bookTitle: copy.title,
+      bookSubtitle: copy.subtitle,
       status: "received",
       bookStatus: "pending",
       pages: null,
@@ -121,7 +123,7 @@ export async function getOrderSummary(
 
   const { data: order, error } = await supabase
     .from("orders")
-    .select("id, child_name, child_age, status, track_id")
+    .select("id, order_number, child_name, child_age, status, track_id")
     .eq("id", id)
     .single();
 
@@ -162,13 +164,16 @@ export async function getOrderSummary(
   const illustrationUrls = await signIllustrationUrls(
     illustrationPathsToSign(bookStatus, book?.illustrations),
   );
+  const copy = personalizedBookCopy(children, track);
 
   return {
     id: order.id,
+    orderNumber: order.order_number,
     children,
     track,
     isDemo: false,
-    bookTitle: book?.title || formatBookTitle(children, track.name),
+    bookTitle: copy.title,
+    bookSubtitle: copy.subtitle,
     status: order.status,
     bookStatus,
     pages: pages.length > 0 ? pages : null,
