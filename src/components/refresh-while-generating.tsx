@@ -2,102 +2,39 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import {
-  GENERATION_STATUS_POLL_MAX_MS,
-  generationStatusPath,
-  nextGenerationStatusDelayMs,
-  shouldRefreshAfterGenerationStatus,
-} from "@/lib/generation-status";
+import { generationStatusPath, startGenerationStatusPoll } from "@/lib/generation-status";
 
 /** Polls a tiny status endpoint until generation finishes, then refreshes once. */
 export function RefreshWhileGenerating({ orderId }: { orderId: string }) {
   const router = useRouter();
 
   useEffect(() => {
-    let cancelled = false;
-    let refreshed = false;
-    let timeoutId = 0;
-    let delayMs = 0;
-    let inflight: AbortController | null = null;
-    const startedAt = Date.now();
-
-    const timedOut = () => Date.now() - startedAt >= GENERATION_STATUS_POLL_MAX_MS;
-
-    const clearTimer = () => {
-      if (timeoutId !== 0) {
-        window.clearTimeout(timeoutId);
-        timeoutId = 0;
-      }
-    };
-
-    const stopInflight = () => {
-      inflight?.abort();
-      inflight = null;
-    };
-
-    const schedule = (ms: number) => {
-      clearTimer();
-      if (cancelled || refreshed || timedOut()) return;
-      timeoutId = window.setTimeout(() => {
-        void poll();
-      }, ms);
-    };
-
-    const poll = async () => {
-      if (cancelled || refreshed || timedOut()) return;
-      if (document.hidden) return;
-
-      delayMs = nextGenerationStatusDelayMs(delayMs);
-      stopInflight();
-      const controller = new AbortController();
-      inflight = controller;
-
-      try {
+    const poll = startGenerationStatusPoll({
+      fetchStatus: async (signal) => {
         const response = await fetch(generationStatusPath(orderId), {
           cache: "no-store",
-          signal: controller.signal,
+          signal,
         });
-        if (cancelled || refreshed) return;
-        if (response.ok) {
-          const payload: unknown = await response.json();
-          if (
-            payload &&
-            typeof payload === "object" &&
-            shouldRefreshAfterGenerationStatus(payload)
-          ) {
-            refreshed = true;
-            clearTimer();
-            router.refresh();
-            return;
-          }
-        }
-      } catch {
-        // Keep the page usable. The next scheduled poll uses backoff.
-      } finally {
-        if (inflight === controller) inflight = null;
-      }
-
-      if (cancelled || refreshed || timedOut() || document.hidden) return;
-      schedule(delayMs);
-    };
+        return response.ok ? await response.json() : null;
+      },
+      onReady: () => router.refresh(),
+      setTimer: (run, delayMs) => window.setTimeout(run, delayMs),
+      clearTimer: (id) => window.clearTimeout(id),
+      isHidden: () => document.hidden,
+    });
 
     const onVisibility = () => {
-      if (cancelled || refreshed) return;
       if (document.hidden) {
-        clearTimer();
-        return;
+        poll.pause();
+      } else {
+        poll.resume();
       }
-      if (inflight || timedOut()) return;
-      schedule(delayMs || nextGenerationStatusDelayMs(0));
     };
 
     document.addEventListener("visibilitychange", onVisibility);
-    schedule(nextGenerationStatusDelayMs(0));
 
     return () => {
-      cancelled = true;
-      clearTimer();
-      stopInflight();
+      poll.stop();
       document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [orderId, router]);

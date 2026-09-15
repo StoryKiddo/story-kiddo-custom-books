@@ -47,6 +47,107 @@ export function isGenerationStatusPollExpired(startedAtMs: number, nowMs: number
   return nowMs - startedAtMs >= GENERATION_STATUS_POLL_MAX_MS;
 }
 
+export type GenerationStatusPollDeps = {
+  /** Resolves the parsed status payload, or null when the request was not usable. */
+  fetchStatus: (signal: AbortSignal) => Promise<unknown>;
+  /** Called at most once, when generation is terminal or the preview is ready. */
+  onReady: () => void;
+  setTimer: (run: () => void, delayMs: number) => number;
+  clearTimer: (id: number) => void;
+  now?: () => number;
+  isHidden?: () => boolean;
+};
+
+export type GenerationStatusPollHandle = {
+  pause: () => void;
+  resume: () => void;
+  stop: () => void;
+};
+
+/**
+ * One self-scheduling timeout, so status requests can never overlap.
+ * Timers and fetching are injected to keep this testable without a DOM.
+ */
+export function startGenerationStatusPoll(
+  deps: GenerationStatusPollDeps,
+): GenerationStatusPollHandle {
+  const now = deps.now ?? (() => Date.now());
+  const isHidden = deps.isHidden ?? (() => false);
+  const startedAt = now();
+
+  let stopped = false;
+  let ready = false;
+  let timerId: number | null = null;
+  let inflight: AbortController | null = null;
+  // Holds the delay already in flight, so the first 5s is not scheduled twice.
+  let delayMs = GENERATION_STATUS_INITIAL_DELAY_MS;
+
+  const expired = () => isGenerationStatusPollExpired(startedAt, now());
+
+  const clearTimer = () => {
+    if (timerId !== null) {
+      deps.clearTimer(timerId);
+      timerId = null;
+    }
+  };
+
+  const abortInflight = () => {
+    inflight?.abort();
+    inflight = null;
+  };
+
+  const schedule = (ms: number) => {
+    clearTimer();
+    if (stopped || ready || expired()) return;
+    timerId = deps.setTimer(() => {
+      timerId = null;
+      void poll();
+    }, ms);
+  };
+
+  const poll = async () => {
+    if (stopped || ready || expired() || isHidden()) return;
+
+    abortInflight();
+    const controller = new AbortController();
+    inflight = controller;
+
+    try {
+      const payload = await deps.fetchStatus(controller.signal);
+      if (stopped || ready) return;
+      if (payload && typeof payload === "object" && shouldRefreshAfterGenerationStatus(payload)) {
+        ready = true;
+        clearTimer();
+        deps.onReady();
+        return;
+      }
+    } catch {
+      // Keep the page usable. The next scheduled poll uses backoff.
+    } finally {
+      if (inflight === controller) inflight = null;
+    }
+
+    if (stopped || ready || isHidden()) return;
+    delayMs = nextGenerationStatusDelayMs(delayMs);
+    schedule(delayMs);
+  };
+
+  schedule(delayMs);
+
+  return {
+    pause: clearTimer,
+    resume: () => {
+      if (stopped || ready || inflight || timerId !== null) return;
+      schedule(delayMs);
+    },
+    stop: () => {
+      stopped = true;
+      clearTimer();
+      abortInflight();
+    },
+  };
+}
+
 function asIllustrationPaths(value: unknown): (string | null)[] | null {
   if (!Array.isArray(value)) return null;
   const paths = value.map((entry) =>
