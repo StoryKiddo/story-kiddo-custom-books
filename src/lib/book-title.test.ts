@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { personalizedBookCopy } from "./book-title.ts";
+import { coverByline, personalizedBookCopy } from "./book-title.ts";
 import { TRACKS, getTrackBySlug } from "./tracks.ts";
 
 function kids(...names: string[]) {
@@ -88,6 +88,26 @@ describe("personalizedBookCopy alphabet rules", () => {
     );
     assert.equal(copy.title, "Our Alphabet Adventure");
     assert.equal(copy.subtitle, "Starring Mary Jane, John Paul & Ava Rose");
+  });
+});
+
+describe("coverByline", () => {
+  it("prints one child's name and age", () => {
+    assert.equal(coverByline(kids("Dylan")), "Starring Dylan, age 4");
+  });
+
+  it("joins two children without ages", () => {
+    assert.equal(coverByline(kids("Dylan", "Mia")), "Starring Dylan & Mia");
+  });
+
+  it("stays off the cover when the subtitle already names everyone", () => {
+    assert.equal(coverByline(kids("Dylan", "Mia", "Leo")), null);
+    assert.equal(coverByline(kids("Dylan", "Mia", "Leo", "Ava")), null);
+  });
+
+  it("trims whitespace and ignores empty names", () => {
+    assert.equal(coverByline(kids("  Dylan  ")), "Starring Dylan, age 4");
+    assert.equal(coverByline([]), null);
   });
 });
 

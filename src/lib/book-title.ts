@@ -14,6 +14,10 @@ export type BookTitleChild = {
   name: string;
 };
 
+export type BylineChild = BookTitleChild & {
+  age: number;
+};
+
 export type BookTitleTrack = {
   slug: string;
   name: string;
@@ -65,4 +69,19 @@ export function personalizedBookCopy(
     title: `Our ${theme} Adventure`,
     subtitle: `Starring ${joinNames(names)}`,
   };
+}
+
+/**
+ * The small "starring" line printed under a cover title. Returns null for three
+ * or more children, where the same names already appear as the subtitle.
+ */
+export function coverByline(children: BylineChild[]): string | null {
+  const names = trimmedNames(children).filter((name) => name.length > 0);
+  if (names.length === 1) {
+    return `Starring ${names[0]}, age ${children[0].age}`;
+  }
+  if (names.length === 2) {
+    return `Starring ${joinNames(names)}`;
+  }
+  return null;
 }

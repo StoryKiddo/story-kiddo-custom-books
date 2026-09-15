@@ -3,9 +3,12 @@ import { notFound } from "next/navigation";
 import { BookCoverPreview } from "@/components/book-cover-preview";
 import { RefreshWhileGenerating } from "@/components/refresh-while-generating";
 import { StoryPages } from "@/components/story-pages";
+import { coverByline } from "@/lib/book-title";
 import { checkoutHref } from "@/lib/checkout-order";
+import { withAlpha } from "@/lib/color";
 import { formatOrderNumberLabel } from "@/lib/order-number";
 import { formatStarsLine, getOrderSummary } from "@/lib/orders";
+import { THEME_GALLERY_HREF } from "@/lib/track-links";
 
 export const dynamic = "force-dynamic";
 
@@ -35,54 +38,68 @@ export default async function OrderPage({
     order.illustrationUrls?.find((url): url is string => Boolean(url)) ?? null;
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-5 py-12 sm:py-16">
-      <p className="text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-sage sm:text-xs">
-        Order received
-      </p>
-      <h1 className="mt-3 text-[2.15rem] leading-[1.12] tracking-[-0.03em] text-ink sm:text-5xl">
-        {order.bookTitle}
-      </h1>
-      {order.bookSubtitle ? (
-        <p className="mt-2 text-lg text-ink-soft">{order.bookSubtitle}</p>
-      ) : null}
-      <p className="mt-3 text-lg text-ink-soft">
-        {formatStarsLine(order.children, order.track.name)}
-      </p>
+    <div className="mx-auto w-full max-w-5xl px-5 py-12 sm:py-16">
+      <div className="grid gap-10 lg:grid-cols-[minmax(0,21rem)_minmax(0,1fr)] lg:items-start lg:gap-14">
+        <BookCoverPreview
+          title={order.bookTitle}
+          subtitle={order.bookSubtitle}
+          byline={coverByline(order.children)}
+          track={order.track}
+          imageUrl={coverImageUrl}
+        />
 
-      <BookCoverPreview
-        title={order.bookTitle}
-        subtitle={order.bookSubtitle}
-        track={order.track}
-        imageUrl={coverImageUrl}
-      />
-
-      <div
-        className="mt-8 flex items-start gap-4 rounded-[28px] p-6"
-        style={{ background: order.track.cover }}
-      >
-        <div className="min-w-0">
-          <p className="font-display text-xl text-ink">{order.track.name}</p>
-          <p className="text-sm text-ink/80">{order.track.tagline}</p>
-          <p className="mt-2 font-mono text-xs text-ink-soft">
-            {formatOrderNumberLabel(order.orderNumber)}
+        <div className="lg:pt-2">
+          <p className="text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-sage sm:text-xs">
+            Order received
           </p>
+          <h1 className="mt-3 font-cover text-[2.1rem] font-bold leading-[1.08] tracking-[-0.02em] text-ink sm:text-[2.6rem]">
+            {order.bookTitle}
+          </h1>
+          {order.bookSubtitle ? (
+            <p className="mt-2 text-lg text-ink-soft">{order.bookSubtitle}</p>
+          ) : null}
+          <p className="mt-3 text-lg leading-relaxed text-ink-soft">
+            {formatStarsLine(order.children, order.track.name)}
+          </p>
+
+          <div
+            className="paper-grain relative mt-7 overflow-hidden rounded-[24px] px-6 py-5"
+            style={{
+              background: `linear-gradient(140deg, ${order.track.art.skyTop}, ${order.track.cover})`,
+              boxShadow: `0 1px 0 rgba(255,255,255,0.6) inset, 0 0 0 1px ${withAlpha(
+                order.track.art.accent,
+                0.45,
+              )}`,
+            }}
+          >
+            <p
+              className="font-cover text-xl font-bold"
+              style={{ color: order.track.art.deep }}
+            >
+              {order.track.name}
+            </p>
+            <p className="text-sm text-ink/80">{order.track.tagline}</p>
+            <p className="mt-3 font-mono text-xs text-ink-soft">
+              {formatOrderNumberLabel(order.orderNumber)}
+            </p>
+          </div>
+
+          <Link
+            href={checkoutHref({
+              id: order.id,
+              isDemo: order.isDemo,
+              trackSlug: order.track.slug,
+              children: order.children,
+            })}
+            className="mt-7 flex w-full items-center justify-center rounded-full bg-coral px-6 py-4 text-center text-base font-semibold tracking-[0.16em] text-white shadow-[0_1px_0_rgba(255,255,255,0.2)_inset,0_10px_20px_-8px_rgba(181,78,53,0.7)] transition hover:bg-coral-dark sm:py-5 sm:text-lg"
+          >
+            BRING TO LIFE
+          </Link>
         </div>
       </div>
 
-      <Link
-        href={checkoutHref({
-          id: order.id,
-          isDemo: order.isDemo,
-          trackSlug: order.track.slug,
-          children: order.children,
-        })}
-        className="mt-8 flex w-full items-center justify-center rounded-full bg-coral px-6 py-4 text-center text-base font-semibold tracking-[0.16em] text-white shadow-[0_1px_0_rgba(255,255,255,0.2)_inset,0_10px_20px_-8px_rgba(181,78,53,0.7)] transition hover:bg-coral-dark sm:py-5 sm:text-lg"
-      >
-        BRING TO LIFE
-      </Link>
-
       {order.isDemo ? (
-        <p className="mt-8 rounded-2xl border border-rule bg-cream/80 px-5 py-4 text-sm text-ink-soft">
+        <p className="mt-10 rounded-2xl border border-rule bg-cream/80 px-5 py-4 text-sm text-ink-soft">
           This order was not saved to Supabase. Add the keys from{" "}
           <code className="rounded bg-paper-deep px-1.5 py-0.5 text-ink">.env.example</code>{" "}
           to <code className="rounded bg-paper-deep px-1.5 py-0.5 text-ink">.env.local</code>{" "}
@@ -93,22 +110,22 @@ export default async function OrderPage({
         <>
           {illustrating || waitingOnStory ? <RefreshWhileGenerating orderId={order.id} /> : null}
           {order.bookStatus === "failed" && !order.illustrationUrls?.some(Boolean) ? (
-            <p className="mt-8 rounded-2xl border border-rule bg-cream/80 px-5 py-4 text-sm text-ink-soft">
+            <p className="mt-10 rounded-2xl border border-rule bg-cream/80 px-5 py-4 text-sm text-ink-soft">
               Your order was saved! Your story is ready below. We&apos;re still
               finishing the pictures — check back in a moment.
             </p>
           ) : null}
-          <StoryPages pages={storyPages} illustrating={illustrating} />
+          <StoryPages pages={storyPages} track={order.track} illustrating={illustrating} />
         </>
       ) : order.bookStatus === "failed" ? (
-        <p className="mt-8 rounded-2xl border border-rule bg-cream/80 px-5 py-4 text-sm text-ink-soft">
+        <p className="mt-10 rounded-2xl border border-rule bg-cream/80 px-5 py-4 text-sm text-ink-soft">
           Your order was saved! We&apos;re finishing up your story — check back
           in a moment.
         </p>
       ) : (
         <>
           {waitingOnStory ? <RefreshWhileGenerating orderId={order.id} /> : null}
-          <p className="mt-8 rounded-2xl border border-rule bg-cream/80 px-5 py-4 text-sm text-ink-soft">
+          <p className="mt-10 rounded-2xl border border-rule bg-cream/80 px-5 py-4 text-sm text-ink-soft">
             Your story is being written&hellip;
           </p>
         </>
@@ -116,7 +133,7 @@ export default async function OrderPage({
 
       <div className="mt-10 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
         <Link
-          href="/themes"
+          href={THEME_GALLERY_HREF}
           className="font-semibold text-ink-soft underline decoration-coral/40 underline-offset-4 transition hover:text-ink"
         >
           Create another book
