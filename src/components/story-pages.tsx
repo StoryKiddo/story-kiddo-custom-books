@@ -181,8 +181,8 @@ function PageNumber({ number, deep }: { number: number; deep: string }) {
         boxShadow: `0 2px 10px -4px ${withAlpha(deep, 0.8)}`,
       }}
     >
-      {number}
-      <span className="sr-only"> Page {number}</span>
+      <span aria-hidden="true">{number}</span>
+      <span className="sr-only">Page {number}</span>
     </span>
   );
 }
