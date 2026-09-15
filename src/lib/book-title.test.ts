@@ -65,6 +65,30 @@ describe("personalizedBookCopy alphabet rules", () => {
     const copy = personalizedBookCopy(kids("  Dylan  "), alphabet);
     assert.equal(copy.title, "Dylan's Alphabet Adventure");
   });
+
+  it("uses only the first word of a two-word name in a one-child title", () => {
+    const copy = personalizedBookCopy(kids("  Mary Jane  "), alphabet);
+    assert.equal(copy.title, "Mary's Alphabet Adventure");
+    assert.equal(wordCount(copy.title), 3);
+  });
+
+  it("keeps a two-child title at five words when both names have two words", () => {
+    const copy = personalizedBookCopy(
+      kids("Mary Jane", "John Paul"),
+      alphabet,
+    );
+    assert.equal(copy.title, "Mary & John's Alphabet Adventure");
+    assert.equal(wordCount(copy.title), 5);
+  });
+
+  it("keeps full trimmed names in the subtitle for three or more children", () => {
+    const copy = personalizedBookCopy(
+      kids("  Mary Jane  ", "John Paul", "Ava Rose"),
+      alphabet,
+    );
+    assert.equal(copy.title, "Our Alphabet Adventure");
+    assert.equal(copy.subtitle, "Starring Mary Jane, John Paul & Ava Rose");
+  });
 });
 
 describe("personalizedBookCopy every track", () => {
