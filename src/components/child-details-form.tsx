@@ -208,7 +208,7 @@ export function ChildDetailsForm({ track }: { track: Track }) {
       )}
 
       <fieldset className="space-y-3">
-        <legend className="font-display text-lg text-ink">What kind of story?</legend>
+        <legend className="font-cover text-lg font-bold text-ink">What kind of story?</legend>
         <p className="text-sm text-ink-soft">
           Pick one style for the whole book. We&apos;ll still write it at the youngest
           child&apos;s reading level.
@@ -224,14 +224,23 @@ export function ChildDetailsForm({ track }: { track: Track }) {
                 aria-pressed={selected}
                 disabled={pending}
                 className={[
-                  "rounded-3xl border bg-white/60 p-4 text-left transition",
+                  "group relative overflow-hidden rounded-[22px] p-4 pl-5 text-left transition",
                   selected
-                    ? "border-ink ring-2 ring-ink/15"
-                    : "border-rule hover:border-ink/25",
+                    ? "bg-white shadow-[0_0_0_2px_var(--ink),0_10px_18px_-14px_rgba(36,28,22,0.6)]"
+                    : "bg-white/55 shadow-[0_0_0_1px_var(--rule)] hover:bg-white/80 hover:shadow-[0_0_0_1px_rgba(36,28,22,0.25)]",
                 ].join(" ")}
+                style={{ borderLeft: `6px solid ${selected ? track.art.deep : track.art.hillFar}` }}
               >
-                <span className="block font-display text-lg text-ink">{type.name}</span>
+                <span className="block font-cover text-lg font-bold text-ink">{type.name}</span>
                 <span className="mt-1 block text-sm text-ink-soft">{type.description}</span>
+                <span
+                  aria-hidden="true"
+                  className="absolute -right-6 -top-6 h-16 w-16 rounded-full transition group-hover:scale-110"
+                  style={{
+                    background: selected ? track.art.accent : track.art.skyBottom,
+                    opacity: selected ? 0.55 : 0.4,
+                  }}
+                />
               </button>
             );
           })}
