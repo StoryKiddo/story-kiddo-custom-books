@@ -66,7 +66,7 @@ export default async function OrderPage({
         </p>
       ) : storyPages ? (
         <>
-          {illustrating || waitingOnStory ? <RefreshWhileGenerating /> : null}
+          {illustrating || waitingOnStory ? <RefreshWhileGenerating orderId={order.id} /> : null}
           {order.bookStatus === "failed" && !order.illustrationUrls?.some(Boolean) ? (
             <p className="mt-8 rounded-2xl border border-rule bg-cream/80 px-5 py-4 text-sm text-ink-soft">
               Your order was saved! Your story is ready below. We&apos;re still
@@ -76,16 +76,13 @@ export default async function OrderPage({
           <StoryPages pages={storyPages} illustrating={illustrating} />
         </>
       ) : order.bookStatus === "failed" ? (
-        <>
-          <RefreshWhileGenerating />
-          <p className="mt-8 rounded-2xl border border-rule bg-cream/80 px-5 py-4 text-sm text-ink-soft">
-            Your order was saved! We&apos;re finishing up your story — check back
-            in a moment.
-          </p>
-        </>
+        <p className="mt-8 rounded-2xl border border-rule bg-cream/80 px-5 py-4 text-sm text-ink-soft">
+          Your order was saved! We&apos;re finishing up your story — check back
+          in a moment.
+        </p>
       ) : (
         <>
-          {waitingOnStory ? <RefreshWhileGenerating /> : null}
+          {waitingOnStory ? <RefreshWhileGenerating orderId={order.id} /> : null}
           <p className="mt-8 rounded-2xl border border-rule bg-cream/80 px-5 py-4 text-sm text-ink-soft">
             Your story is being written&hellip;
           </p>

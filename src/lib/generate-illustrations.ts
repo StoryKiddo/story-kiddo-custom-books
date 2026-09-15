@@ -168,6 +168,7 @@ export async function illustrateBook(options: {
         .from(ILLUSTRATION_BUCKET)
         .upload(masterPath, masterPng, {
           contentType: "image/png",
+          cacheControl: "3600",
           upsert: true,
         });
       if (masterUploadError) {
@@ -178,6 +179,7 @@ export async function illustrateBook(options: {
         .from(ILLUSTRATION_BUCKET)
         .upload(previewPath, previewPng, {
           contentType: "image/png",
+          cacheControl: "3600",
           upsert: true,
         });
       if (previewUploadError) {
