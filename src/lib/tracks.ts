@@ -6,6 +6,20 @@
  * catalog stays in sync. When you add or rename a track, update both places.
  */
 
+/**
+ * Palette for the cut-paper scene drawn behind every theme (tiles, covers,
+ * story pages). Four stacked layers — sky, far hill, near hill, accent —
+ * plus a `deep` ink dark enough to carry white text on top of it.
+ */
+export type TrackArt = {
+  skyTop: string;
+  skyBottom: string;
+  hillFar: string;
+  hillNear: string;
+  accent: string;
+  deep: string;
+};
+
 export type Track = {
   /** URL-friendly id, also stored on `tracks.slug` in Supabase. */
   slug: string;
@@ -19,6 +33,8 @@ export type Track = {
   cover: string;
   /** Darker ink used for the spine / icon. */
   ink: string;
+  /** Colors for the illustrated scene. */
+  art: TrackArt;
 };
 
 export const TRACKS: Track[] = [
@@ -31,6 +47,14 @@ export const TRACKS: Track[] = [
     ageRange: "Ages 2–6",
     cover: "#f6c9b8",
     ink: "#b55b3e",
+    art: {
+      skyTop: "#ffeadb",
+      skyBottom: "#f7c8b2",
+      hillFar: "#eeab8c",
+      hillNear: "#dc8964",
+      accent: "#f0b64b",
+      deep: "#8c3f26",
+    },
   },
   {
     slug: "numbers",
@@ -41,6 +65,14 @@ export const TRACKS: Track[] = [
     ageRange: "Ages 2–6",
     cover: "#c5dce8",
     ink: "#3d7a8c",
+    art: {
+      skyTop: "#e6f4fa",
+      skyBottom: "#bedbea",
+      hillFar: "#92c0d2",
+      hillNear: "#5f99b0",
+      accent: "#efb964",
+      deep: "#275a6b",
+    },
   },
   {
     slug: "colors-shapes",
@@ -51,6 +83,14 @@ export const TRACKS: Track[] = [
     ageRange: "Ages 2–5",
     cover: "#e3d2f0",
     ink: "#7a4ea3",
+    art: {
+      skyTop: "#f4eafc",
+      skyBottom: "#ddccf0",
+      hillFar: "#c0a6df",
+      hillNear: "#9977c5",
+      accent: "#f2a9c4",
+      deep: "#57337a",
+    },
   },
   {
     slug: "emotions",
@@ -61,6 +101,14 @@ export const TRACKS: Track[] = [
     ageRange: "Ages 3–8",
     cover: "#f5d0d8",
     ink: "#b14b63",
+    art: {
+      skyTop: "#ffe9ee",
+      skyBottom: "#f5ccd6",
+      hillFar: "#e9a9b7",
+      hillNear: "#d17e94",
+      accent: "#f3c876",
+      deep: "#86324a",
+    },
   },
   {
     slug: "kindness-values",
@@ -71,6 +119,14 @@ export const TRACKS: Track[] = [
     ageRange: "Ages 3–8",
     cover: "#cfe5d4",
     ink: "#3f7a52",
+    art: {
+      skyTop: "#e9f5eb",
+      skyBottom: "#c9e2cf",
+      hillFar: "#a3ccb0",
+      hillNear: "#6da781",
+      accent: "#f0b25e",
+      deep: "#2c5a3c",
+    },
   },
   {
     slug: "life-milestones",
@@ -81,6 +137,14 @@ export const TRACKS: Track[] = [
     ageRange: "Ages 2–7",
     cover: "#f3ddb0",
     ink: "#b07a1f",
+    art: {
+      skyTop: "#fef2d6",
+      skyBottom: "#f2dbab",
+      hillFar: "#e2c07e",
+      hillNear: "#c99e4e",
+      accent: "#e0774f",
+      deep: "#855a14",
+    },
   },
   {
     slug: "animals-nature",
@@ -91,6 +155,14 @@ export const TRACKS: Track[] = [
     ageRange: "Ages 2–8",
     cover: "#d4e4c4",
     ink: "#4f7340",
+    art: {
+      skyTop: "#eef6e1",
+      skyBottom: "#d2e3c0",
+      hillFar: "#b0cd95",
+      hillNear: "#7da968",
+      accent: "#e29a5a",
+      deep: "#3b5730",
+    },
   },
   {
     slug: "manners",
@@ -101,6 +173,14 @@ export const TRACKS: Track[] = [
     ageRange: "Ages 3–7",
     cover: "#d5e0f2",
     ink: "#3d5a8a",
+    art: {
+      skyTop: "#eaf0fc",
+      skyBottom: "#cfdcf2",
+      hillFar: "#acc1e2",
+      hillNear: "#7795c4",
+      accent: "#eeb27a",
+      deep: "#2b4268",
+    },
   },
 ];
 
