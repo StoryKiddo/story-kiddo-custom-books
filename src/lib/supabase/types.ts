@@ -31,6 +31,8 @@ export type OrderRow = {
   id: string;
   customer_id: string;
   track_id: string;
+  /** Customer-facing six-digit number. Distinct from the UUID primary key. */
+  order_number: number;
   /** Legacy single-child fields. New orders store children in book_children. */
   child_name: string | null;
   child_age: number | null;
