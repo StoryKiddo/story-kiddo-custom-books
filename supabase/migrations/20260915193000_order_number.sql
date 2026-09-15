@@ -61,12 +61,13 @@ begin
 end $$;
 
 -- Point the sequence after the highest assigned number so new inserts do not collide.
--- Empty table: coalesce to 99999 so the next nextval() is 100000.
+-- Empty table: set to 100000 with is_called=false so the next nextval() is 100000.
 select setval(
   'public.orders_order_number_seq',
-  coalesce((select max(order_number) from public.orders), 99999),
-  true
-);
+  coalesce(max(order_number), 100000),
+  max(order_number) is not null
+)
+from public.orders;
 
 alter table public.orders
   alter column order_number set default nextval('public.orders_order_number_seq');
