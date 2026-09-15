@@ -2,17 +2,42 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { generationStatusPath, startGenerationStatusPoll } from "@/lib/generation-status";
 
-/** Reloads the confirmation page until story and pictures finish. */
-export function RefreshWhileGenerating() {
+/** Polls a tiny status endpoint until generation finishes, then refreshes once. */
+export function RefreshWhileGenerating({ orderId }: { orderId: string }) {
   const router = useRouter();
 
   useEffect(() => {
-    const id = window.setInterval(() => {
-      router.refresh();
-    }, 2500);
-    return () => window.clearInterval(id);
-  }, [router]);
+    const poll = startGenerationStatusPoll({
+      fetchStatus: async (signal) => {
+        const response = await fetch(generationStatusPath(orderId), {
+          cache: "no-store",
+          signal,
+        });
+        return response.ok ? await response.json() : null;
+      },
+      onReady: () => router.refresh(),
+      setTimer: (run, delayMs) => window.setTimeout(run, delayMs),
+      clearTimer: (id) => window.clearTimeout(id),
+      isHidden: () => document.hidden,
+    });
+
+    const onVisibility = () => {
+      if (document.hidden) {
+        poll.pause();
+      } else {
+        poll.resume();
+      }
+    };
+
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      poll.stop();
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [orderId, router]);
 
   return null;
 }

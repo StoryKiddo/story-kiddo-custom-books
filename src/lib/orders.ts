@@ -6,7 +6,8 @@
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { getTrackBySlug, type Track } from "@/lib/tracks";
 import type { BookStatus } from "@/lib/supabase/types";
-import { PREVIEW_STORY_PAGE_COUNT, visiblePreviewSlice } from "@/lib/personalization";
+import { visiblePreviewSlice } from "@/lib/personalization";
+import { illustrationPathsToSign } from "@/lib/generation-status";
 
 export const MAX_CHILDREN_PER_BOOK = 4;
 
@@ -32,14 +33,6 @@ function asPages(value: unknown): string[] | null {
   if (!Array.isArray(value)) return null;
   const pages = value.filter((page): page is string => typeof page === "string" && page.trim().length > 0);
   return pages.length > 0 ? pages : null;
-}
-
-function asIllustrationPaths(value: unknown): (string | null)[] | null {
-  if (!Array.isArray(value)) return null;
-  const paths = value.map((entry) =>
-    typeof entry === "string" && entry.trim().length > 0 ? entry : null,
-  );
-  return paths.some((path) => path) ? paths : null;
 }
 
 async function signIllustrationUrls(
@@ -167,7 +160,7 @@ export async function getOrderSummary(
   const pages = visiblePreviewSlice(asPages(book?.pages) ?? []);
   const bookStatus: BookStatus = book?.status ?? "pending";
   const illustrationUrls = await signIllustrationUrls(
-    asIllustrationPaths(book?.illustrations)?.slice(0, PREVIEW_STORY_PAGE_COUNT) ?? null,
+    illustrationPathsToSign(bookStatus, book?.illustrations),
   );
 
   return {
