@@ -44,18 +44,19 @@ export function personalizedBookCopy(
   track: BookTitleTrack,
 ): PersonalizedBookCopy {
   const names = trimmedNames(children);
+  const titleNames = names.map((name) => name.split(/\s+/)[0]);
   const theme = trackTitleWord(track);
 
-  if (names.length <= 1) {
+  if (titleNames.length <= 1) {
     return {
-      title: `${names[0] ?? "Our"}'s ${theme} Adventure`,
+      title: `${titleNames[0] ?? "Our"}'s ${theme} Adventure`,
       subtitle: null,
     };
   }
 
-  if (names.length === 2) {
+  if (titleNames.length === 2) {
     return {
-      title: `${names[0]} & ${names[1]}'s ${theme} Adventure`,
+      title: `${titleNames[0]} & ${titleNames[1]}'s ${theme} Adventure`,
       subtitle: null,
     };
   }
