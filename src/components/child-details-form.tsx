@@ -173,9 +173,18 @@ export function ChildDetailsForm({ track }: { track: Track }) {
     goTo(Math.min(step + 1, LAST_STEP));
   }
 
+  /**
+   * The primary button is never a submit button. React reuses one DOM node for
+   * "Continue" and "Create this book", so a submit type would still be pressed
+   * when `onNext` swapped it mid-click and would post the order a step early.
+   */
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (step === LAST_STEP) submitOrder();
+    else onNext();
+  }
 
+  function submitOrder() {
     for (let index = 0; index <= LAST_STEP; index++) {
       const problem = problemWithStep(index);
       if (problem) {
@@ -413,25 +422,21 @@ export function ChildDetailsForm({ track }: { track: Track }) {
       ) : null}
 
       <div className="space-y-4 border-t border-rule pt-6">
-        {step === LAST_STEP ? (
-          <button
-            type="submit"
-            id="create-book-submit"
-            disabled={pending}
-            className="w-full rounded-full bg-coral px-8 py-4 text-base font-semibold text-white shadow-[0_1px_0_rgba(255,255,255,0.2)_inset,0_12px_22px_-10px_rgba(171,71,40,0.8)] transition hover:bg-coral-dark disabled:cursor-wait disabled:opacity-70"
-          >
-            {pending ? "Making your book…" : errorMessage ? "Try again" : "Create this book"}
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={onNext}
-            disabled={pending}
-            className="w-full rounded-full bg-coral px-8 py-4 text-base font-semibold text-white shadow-[0_1px_0_rgba(255,255,255,0.2)_inset,0_12px_22px_-10px_rgba(171,71,40,0.8)] transition hover:bg-coral-dark disabled:opacity-70"
-          >
-            Continue
-          </button>
-        )}
+        <button
+          type="button"
+          id="create-book-submit"
+          onClick={step === LAST_STEP ? submitOrder : onNext}
+          disabled={pending}
+          className="w-full rounded-full bg-coral px-8 py-4 text-base font-semibold text-white shadow-[0_1px_0_rgba(255,255,255,0.2)_inset,0_12px_22px_-10px_rgba(171,71,40,0.8)] transition hover:bg-coral-dark disabled:cursor-wait disabled:opacity-70"
+        >
+          {step < LAST_STEP
+            ? "Continue"
+            : pending
+              ? "Making your book…"
+              : errorMessage
+                ? "Try again"
+                : "Create this book"}
+        </button>
 
         <p className="flex items-center justify-center gap-2 text-center text-sm text-ink-soft">
           <ShieldMark />
