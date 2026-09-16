@@ -144,9 +144,12 @@ describe("preview watermark", () => {
     assert.doesNotMatch(pipeline, /buildWatermarkSvg/);
     assert.doesNotMatch(pipeline, /Do not add any watermark/);
 
+    // The page renders exactly the URL it is handed (a signed preview path) and
+    // never reaches for the clean master.
     const ui = readFileSync(new URL("../components/story-pages.tsx", import.meta.url), "utf8");
-    assert.match(ui, /src=\{page\.imageUrl/);
+    assert.match(ui, /src=\{imageUrl\}/);
     assert.doesNotMatch(ui, /watermark/);
+    assert.doesNotMatch(ui, /master/);
 
     const { default: sharp } = await import("sharp");
     const modelPng = await sharp({

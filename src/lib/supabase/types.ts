@@ -62,6 +62,10 @@ export type BookRow = {
   page_count: number | null;
   pages: string[] | null;
   illustrations: (string | null)[] | null;
+  /** Storage path of the generated cover, whose title is lettered into the art. */
+  cover_path: string | null;
+  /** Giver line painted at the foot of the cover, e.g. "From Mom and Dad". */
+  dedication: string | null;
   preview_generated: boolean;
   story_type: string | null;
   blueprint: Record<string, unknown> | null;

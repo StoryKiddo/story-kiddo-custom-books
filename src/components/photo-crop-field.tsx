@@ -221,7 +221,7 @@ export function PhotoCropField({ id, label, pending }: PhotoCropFieldProps) {
       {sourceUrl && cropping ? (
         <div className="space-y-4 rounded-3xl border border-rule bg-cream/70 p-4 sm:p-5">
           <p className="text-sm font-semibold text-ink">
-            Drag to frame {label.toLowerCase()}&apos;s face
+            Drag to frame {label}&apos;s face
           </p>
           <div className="relative h-72 w-full touch-none overflow-hidden rounded-3xl bg-paper-deep sm:h-80">
             <Cropper
@@ -253,7 +253,7 @@ export function PhotoCropField({ id, label, pending }: PhotoCropFieldProps) {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={previewUrl}
-                alt={`Cropped preview for ${label.toLowerCase()}`}
+                alt={`Cropped preview for ${label}`}
                 className="h-24 w-[4.8rem] rounded-2xl object-cover shadow-[0_12px_24px_-12px_rgba(36,28,22,0.28)]"
               />
               <p className="text-sm text-ink-soft">This cropped photo is what we&apos;ll use for the illustrations.</p>
@@ -293,7 +293,7 @@ export function PhotoCropField({ id, label, pending }: PhotoCropFieldProps) {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={previewUrl}
-              alt={`Cropped photo of ${label.toLowerCase()}`}
+              alt={`Cropped photo of ${label}`}
               className="h-40 w-32 rounded-3xl object-cover shadow-[0_12px_24px_-12px_rgba(36,28,22,0.28)]"
             />
             <span className="text-sm font-semibold text-ink">

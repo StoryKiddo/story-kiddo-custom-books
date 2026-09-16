@@ -17,7 +17,7 @@
 import { randomUUID } from "node:crypto";
 import { after } from "next/server";
 import { redirect } from "next/navigation";
-import { personalizedBookCopy } from "@/lib/book-title";
+import { dedicationLine, personalizedBookCopy } from "@/lib/book-title";
 import {
   CREATE_ORDER_MESSAGES,
   isAllowedPhotoType,
@@ -69,7 +69,7 @@ type ParsedChild = {
 
 function parseChildren(
   formData: FormData,
-): { children: ParsedChild[]; storyType: StoryTypeId } | { error: string } {
+): { children: ParsedChild[]; storyType: StoryTypeId; dedication: string } | { error: string } {
   const names = formData.getAll("childName").map(asString);
   const ages = formData.getAll("childAge").map(asString);
   const photos = formData.getAll("photo");
@@ -116,7 +116,7 @@ function parseChildren(
     });
   }
 
-  return { children, storyType };
+  return { children, storyType, dedication: dedicationLine(asString(formData.get("giver"))) };
 }
 
 export async function createOrder(
@@ -145,7 +145,7 @@ async function submitCreateOrder(formData: FormData): Promise<CreateOrderState> 
     return { error: parsed.error };
   }
 
-  const { children, storyType } = parsed;
+  const { children, storyType, dedication } = parsed;
 
   // Without a live Supabase project, skip persistence and still show a
   // confirmation page so the frontend flow can be reviewed end to end.
@@ -263,7 +263,7 @@ async function submitCreateOrder(formData: FormData): Promise<CreateOrderState> 
   // (book row, story generation) must not send the customer back to a
   // blank form — redirect to the confirmation page instead.
   try {
-    const bookPayload = {
+    const baseBookPayload = {
       order_id: order.id,
       title: personalizedBookCopy(
         uploaded.map((child) => ({ name: child.name, age: child.age })),
@@ -275,19 +275,21 @@ async function submitCreateOrder(formData: FormData): Promise<CreateOrderState> 
 
     const inserted = await supabase
       .from("books")
-      .insert(bookPayload)
+      .insert({ ...baseBookPayload, dedication })
       .select("id")
       .single();
     let book = inserted.data;
 
     if (inserted.error || !book) {
-      const retry = await supabase.from("books").insert(bookPayload).select("id").single();
+      // Retry without the dedication so a database that has not run the cover
+      // migration yet still gets a book row.
+      const retry = await supabase.from("books").insert(baseBookPayload).select("id").single();
       book = retry.data;
     }
 
     if (book && isAnthropicConfigured()) {
       await supabase.from("books").update({ status: "generating" }).eq("id", book.id);
-      scheduleStoryGeneration(book.id, track, uploaded, storyType);
+      scheduleStoryGeneration(book.id, track, uploaded, storyType, dedication);
     }
   } catch (error) {
     if (isNextRedirectError(error)) throw error;
@@ -309,6 +311,7 @@ function scheduleStoryGeneration(
     personalNote: string | null;
   }[],
   storyType: StoryTypeId,
+  dedication: string,
 ) {
   after(async () => {
     const admin = createAdminSupabaseClient();
@@ -362,6 +365,7 @@ function scheduleStoryGeneration(
             track,
             pages,
             children,
+            dedication,
             pagePlan: story.pagePlan,
             continuity: story.continuity,
           });
@@ -372,6 +376,7 @@ function scheduleStoryGeneration(
             track,
             pages,
             children,
+            dedication,
             pagePlan: story.pagePlan,
             continuity: story.continuity,
           });
