@@ -8,6 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "art": "node --experimental-strip-types scripts/generate-art.ts",
     "test": "node --test --experimental-strip-types src/lib/*.test.ts"
   },
   "dependencies": {
