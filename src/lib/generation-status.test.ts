@@ -281,10 +281,13 @@ describe("getOrderSummary signed URLs", () => {
 describe("illustration upload cache headers", () => {
   it("sets a one-hour cacheControl on master and preview uploads", () => {
     const pipeline = readFileSync(new URL("./generate-illustrations.ts", import.meta.url), "utf8");
-    const matches = pipeline.match(/cacheControl:\s*"3600"/g) ?? [];
-    assert.equal(matches.length, 2);
+    const cacheHeaders = pipeline.match(/cacheControl:\s*"3600"/g) ?? [];
+    const uploads = pipeline.match(/\.upload\(/g) ?? [];
+    // Every upload — cover, master, and preview — expires with the signed URL.
+    assert.equal(cacheHeaders.length, uploads.length);
     assert.match(pipeline, /upload\(masterPath, masterPng/);
     assert.match(pipeline, /upload\(previewPath, previewPng/);
+    assert.match(pipeline, /upload\(coverPath, cover\.png/);
     assert.doesNotMatch(pipeline, /immutable/);
     assert.doesNotMatch(pipeline, /31536000/);
   });

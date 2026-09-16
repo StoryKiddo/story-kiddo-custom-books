@@ -22,6 +22,16 @@ import {
   stampCustomerPreview,
 } from "@/lib/illustration-watermark";
 import type { BookContinuity, PagePlanItem } from "@/lib/story-blueprint";
+import { coverLockup, dedicationLine, personalizedBookCopy } from "@/lib/book-title";
+import {
+  COVER_PROOF_MODEL,
+  buildCoverPrompt,
+  buildCoverRequestFields,
+  coverObjectPath,
+  coverProofIssues,
+  repaintNote,
+  shouldRepaintCover,
+} from "@/lib/cover-prompt";
 
 const ILLUSTRATION_BUCKET = "book-illustrations";
 const PHOTO_BUCKET = "child-photos";
@@ -115,6 +125,10 @@ export async function generatePageIllustration(options: {
     throw new Error(described.message);
   }
 
+  return imageFromResult(result);
+}
+
+async function imageFromResult(result: { data?: { b64_json?: string; url?: string }[] }): Promise<Buffer> {
   const item = result.data?.[0];
   if (item?.b64_json) {
     return Buffer.from(item.b64_json, "base64");
@@ -122,12 +136,107 @@ export async function generatePageIllustration(options: {
   if (item?.url) {
     const response = await fetch(item.url);
     if (!response.ok) {
-      throw new Error("Could not download the generated illustration.");
+      throw new Error("Could not download the generated image.");
     }
     return Buffer.from(await response.arrayBuffer());
   }
-
   throw new Error("The image model returned no image data.");
+}
+
+/**
+ * Reads the text an image model painted onto a cover. Returns null when the
+ * read-back itself fails — a proofing outage should not cost the customer
+ * their cover, so callers treat null as "accept this one".
+ */
+async function readCoverText(client: OpenAI, png: Buffer): Promise<string | null> {
+  try {
+    const completion = await client.chat.completions.create({
+      model: COVER_PROOF_MODEL,
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: "Transcribe every word of text you can see in this book cover image, exactly as it is spelled, one line per line of text. If there is no text, reply NONE.",
+            },
+            {
+              type: "image_url",
+              image_url: { url: `data:image/png;base64,${png.toString("base64")}` },
+            },
+          ],
+        },
+      ],
+    });
+    return completion.choices?.[0]?.message?.content?.trim() ?? null;
+  } catch (error) {
+    console.error("Cover proofing could not run; accepting the cover as painted", error);
+    return null;
+  }
+}
+
+/**
+ * Paints the cover with the title lettered into the artwork, then proofreads
+ * the lettering and repaints if a child's name came out wrong.
+ */
+export async function generateCoverArt(options: {
+  track: Track;
+  children: IllustrationChild[];
+  referenceImages: File[];
+  title: string;
+  dedication: string;
+}): Promise<{ png: Buffer; attempts: number; issues: string[] }> {
+  const apiKey = getOpenAIApiKey();
+  if (!apiKey) {
+    throw new Error("OPENAI_API_KEY is not configured.");
+  }
+
+  const client = new OpenAI({ apiKey });
+  const lockup = coverLockup(options.title);
+  const basePrompt = buildCoverPrompt({
+    track: options.track,
+    children: options.children,
+    lockup,
+    dedication: options.dedication,
+  });
+  const childNames = options.children.map((child) => child.name);
+
+  let lastPng: Buffer | null = null;
+  let issues: string[] = [];
+
+  for (let attempt = 1; ; attempt++) {
+    const prompt = attempt === 1 ? basePrompt : `${basePrompt}${repaintNote(issues)}`;
+    let result;
+    try {
+      result = await client.images.edit({
+        ...buildCoverRequestFields(prompt),
+        image: options.referenceImages,
+      });
+    } catch (error) {
+      const described = describeIllustrationApiError(error);
+      if (described.isAccessError) {
+        console.error(described.message);
+      }
+      throw new Error(described.message);
+    }
+
+    lastPng = await imageFromResult(result);
+
+    const readText = await readCoverText(client, lastPng);
+    if (readText === null) {
+      return { png: lastPng, attempts: attempt, issues: [] };
+    }
+
+    issues = coverProofIssues({ readText, childNames, lockup });
+    if (issues.length === 0) {
+      return { png: lastPng, attempts: attempt, issues };
+    }
+
+    console.warn(`Cover attempt ${attempt} failed proofing: ${issues.join(" ")}`);
+    if (!shouldRepaintCover(attempt, issues)) {
+      return { png: lastPng, attempts: attempt, issues };
+    }
+  }
 }
 
 export async function illustrateBook(options: {
@@ -135,6 +244,7 @@ export async function illustrateBook(options: {
   track: Track;
   pages: string[];
   children: IllustrationChild[];
+  dedication?: string | null;
   pagePlan?: PagePlanItem[];
   continuity?: BookContinuity | null;
 }): Promise<(string | null)[]> {
@@ -145,6 +255,50 @@ export async function illustrateBook(options: {
 
   const references = await downloadReferencePhotos(options.children);
   const referenceImages = references.map((entry) => entry.file);
+
+  // The cover comes first: it is the picture the customer sees at the top of
+  // the preview, and its lettering is the part that has to be right.
+  try {
+    const { title } = personalizedBookCopy(options.children, options.track);
+    const cover = await generateCoverArt({
+      track: options.track,
+      children: options.children,
+      referenceImages,
+      title,
+      dedication: dedicationLine(options.dedication),
+    });
+
+    if (cover.issues.length > 0) {
+      console.error(
+        `Cover lettering still wrong after ${cover.attempts} attempts: ${cover.issues.join(" ")}`,
+      );
+    }
+
+    const coverPath = coverObjectPath(options.bookId);
+    const { error: coverUploadError } = await supabase.storage
+      .from(ILLUSTRATION_BUCKET)
+      .upload(coverPath, cover.png, {
+        contentType: "image/png",
+        cacheControl: "3600",
+        upsert: true,
+      });
+    if (coverUploadError) {
+      throw coverUploadError;
+    }
+
+    const { error: coverSaveError } = await supabase
+      .from("books")
+      .update({ cover_path: coverPath })
+      .eq("id", options.bookId);
+    if (coverSaveError) {
+      console.error("Failed to save the cover path", coverSaveError);
+    }
+  } catch (error) {
+    // A missing cover is recoverable: the preview page says so and the story
+    // pages below it still get painted.
+    console.error("Cover generation failed", error);
+  }
+
   const illustrations: (string | null)[] = options.pages.map(() => null);
   const previewCount = previewIllustrationCount(options.pages.length);
 
