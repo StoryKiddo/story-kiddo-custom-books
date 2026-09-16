@@ -7,9 +7,10 @@
  */
 
 /**
- * Palette for the cut-paper scene drawn behind every theme (tiles, covers,
- * story pages). Four stacked layers — sky, far hill, near hill, accent —
- * plus a `deep` ink dark enough to carry white text on top of it.
+ * Palette for the illustrated scene painted for every theme (tiles, covers,
+ * mockups, story panels). Stacked from the back of the picture forward — sky,
+ * far hill, near hill — plus the colors the props and planting are painted in
+ * and a `deep` ink dark enough to carry white text on top of it.
  */
 export type TrackArt = {
   skyTop: string;
@@ -18,6 +19,12 @@ export type TrackArt = {
   hillNear: string;
   accent: string;
   deep: string;
+  /** Foliage: canopies, bushes, grass blades. */
+  leaf: string;
+  /** Sunlight, lamplight, and other glow in the scene. */
+  warm: string;
+  /** Painted props — blocks, balloons, doors, signs. */
+  prop: string;
 };
 
 export type Track = {
@@ -54,6 +61,9 @@ export const TRACKS: Track[] = [
       hillNear: "#dc8964",
       accent: "#f0b64b",
       deep: "#8c3f26",
+      leaf: "#7fa86b",
+      warm: "#ffd98a",
+      prop: "#e4794f",
     },
   },
   {
@@ -72,6 +82,9 @@ export const TRACKS: Track[] = [
       hillNear: "#5f99b0",
       accent: "#efb964",
       deep: "#275a6b",
+      leaf: "#6da78c",
+      warm: "#ffd68f",
+      prop: "#e08a52",
     },
   },
   {
@@ -90,6 +103,9 @@ export const TRACKS: Track[] = [
       hillNear: "#9977c5",
       accent: "#f2a9c4",
       deep: "#57337a",
+      leaf: "#8fb782",
+      warm: "#ffd9a3",
+      prop: "#e0709b",
     },
   },
   {
@@ -108,6 +124,9 @@ export const TRACKS: Track[] = [
       hillNear: "#d17e94",
       accent: "#f3c876",
       deep: "#86324a",
+      leaf: "#86ab84",
+      warm: "#ffd493",
+      prop: "#c96a86",
     },
   },
   {
@@ -126,6 +145,9 @@ export const TRACKS: Track[] = [
       hillNear: "#6da781",
       accent: "#f0b25e",
       deep: "#2c5a3c",
+      leaf: "#5f9a6d",
+      warm: "#ffd68f",
+      prop: "#e08a4e",
     },
   },
   {
@@ -144,6 +166,9 @@ export const TRACKS: Track[] = [
       hillNear: "#c99e4e",
       accent: "#e0774f",
       deep: "#855a14",
+      leaf: "#88a86a",
+      warm: "#ffdc95",
+      prop: "#d2643c",
     },
   },
   {
@@ -162,6 +187,9 @@ export const TRACKS: Track[] = [
       hillNear: "#7da968",
       accent: "#e29a5a",
       deep: "#3b5730",
+      leaf: "#6d9a54",
+      warm: "#ffd792",
+      prop: "#d4813f",
     },
   },
   {
@@ -180,6 +208,9 @@ export const TRACKS: Track[] = [
       hillNear: "#7795c4",
       accent: "#eeb27a",
       deep: "#2b4268",
+      leaf: "#7ba482",
+      warm: "#ffd894",
+      prop: "#dd8a58",
     },
   },
 ];
