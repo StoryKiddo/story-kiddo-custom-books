@@ -34,7 +34,8 @@ export default async function OrderPage({
   const illustrating = order.bookStatus === "illustrating";
   const waitingOnStory =
     order.bookStatus === "generating" || order.bookStatus === "pending";
-  const stillWorking = illustrating || waitingOnStory;
+  // A demo order never reaches the pipeline, so it is not "being made".
+  const stillWorking = !order.isDemo && (illustrating || waitingOnStory);
 
   return (
     <div className="mx-auto w-full max-w-5xl px-5 py-12 sm:py-16">

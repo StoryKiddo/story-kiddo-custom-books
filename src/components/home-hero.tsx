@@ -75,22 +75,26 @@ export function HomeHero() {
               height={1100}
               priority
               sizes="(min-width: 1024px) 34rem, 92vw"
-              className="h-auto w-full"
+              // Cropped above the floor so the books can stand along the bottom
+              // edge without covering the two of them reading.
+              className="aspect-[7/5] w-full object-cover object-[50%_22%]"
             />
-            <figcaption className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-ink/70 to-transparent px-6 pb-4 pt-14 text-left text-sm font-semibold text-cream">
+            <figcaption className="absolute left-0 top-0 m-4 rounded-full bg-cream/90 px-4 py-1.5 text-xs font-semibold text-ink shadow-[0_6px_14px_-8px_rgba(35,26,19,0.8)]">
               Their name on the cover. Their face on every page.
             </figcaption>
           </figure>
 
-          {/* Layer two: the books themselves, standing in front. */}
-          <div className="pointer-events-none absolute -bottom-10 -left-4 w-[42%] max-w-[13rem] sm:-bottom-14 sm:left-2 lg:-left-10 lg:w-[46%]">
-            <BookMockup track={lead} priority sizes="(min-width: 1024px) 14rem, 40vw" />
-          </div>
-          <div className="pointer-events-none absolute -bottom-4 left-[30%] w-[30%] max-w-[9.5rem] opacity-95 sm:left-[32%] lg:w-[32%]">
-            <BookMockup track={second} sizes="(min-width: 1024px) 10rem, 28vw" />
-          </div>
-          <div className="pointer-events-none absolute -right-2 -bottom-6 hidden w-[26%] max-w-[8.5rem] sm:block lg:-right-6">
-            <BookMockup track={third} sizes="(min-width: 1024px) 9rem, 24vw" />
+          {/* Layer two: the books themselves, standing along the bottom edge. */}
+          <div className="pointer-events-none absolute inset-x-0 -bottom-10 flex items-end justify-end gap-3 pr-2 sm:-bottom-14 sm:gap-5 lg:-bottom-16 lg:pr-6">
+            <div className="w-[19%] max-w-[7rem] opacity-95">
+              <BookMockup track={third} sizes="(min-width: 1024px) 7rem, 19vw" />
+            </div>
+            <div className="w-[24%] max-w-[9rem]">
+              <BookMockup track={second} sizes="(min-width: 1024px) 9rem, 24vw" />
+            </div>
+            <div className="w-[32%] max-w-[12rem]">
+              <BookMockup track={lead} priority sizes="(min-width: 1024px) 12rem, 32vw" />
+            </div>
           </div>
         </div>
       </div>

@@ -94,7 +94,7 @@ function StoryPage({
         <PageNumber number={number} deep={deep} />
         {painting ? (
           <p
-            className="absolute bottom-4 right-4 rounded-full px-3 py-1.5 text-[0.68rem] font-semibold uppercase tracking-[0.16em]"
+            className="absolute right-5 top-5 rounded-full px-3 py-1.5 text-[0.68rem] font-semibold uppercase tracking-[0.16em] sm:right-6 sm:top-6"
             style={{ background: withAlpha("#fffaf3", 0.9), color: deep }}
           >
             Painting this picture…
