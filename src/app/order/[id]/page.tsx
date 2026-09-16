@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { BookCoverPreview } from "@/components/book-cover-preview";
+import { BookInProgress } from "@/components/book-in-progress";
+import { OrderCover } from "@/components/order-cover";
 import { RefreshWhileGenerating } from "@/components/refresh-while-generating";
 import { StoryPages } from "@/components/story-pages";
-import { coverByline } from "@/lib/book-title";
 import { checkoutHref } from "@/lib/checkout-order";
 import { withAlpha } from "@/lib/color";
 import { formatOrderNumberLabel } from "@/lib/order-number";
@@ -34,25 +34,23 @@ export default async function OrderPage({
   const illustrating = order.bookStatus === "illustrating";
   const waitingOnStory =
     order.bookStatus === "generating" || order.bookStatus === "pending";
-  const coverImageUrl =
-    order.illustrationUrls?.find((url): url is string => Boolean(url)) ?? null;
+  const stillWorking = illustrating || waitingOnStory;
 
   return (
     <div className="mx-auto w-full max-w-5xl px-5 py-12 sm:py-16">
       <div className="grid gap-10 lg:grid-cols-[minmax(0,21rem)_minmax(0,1fr)] lg:items-start lg:gap-14">
-        <BookCoverPreview
-          title={order.bookTitle}
-          subtitle={order.bookSubtitle}
-          byline={coverByline(order.children)}
+        <OrderCover
           track={order.track}
-          imageUrl={coverImageUrl}
+          title={order.bookTitle}
+          coverUrl={order.coverUrl}
+          pending={stillWorking}
         />
 
         <div className="lg:pt-2">
           <p className="text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-sage sm:text-xs">
             Order received
           </p>
-          <h1 className="mt-3 font-cover text-[2.1rem] font-bold leading-[1.08] tracking-[-0.02em] text-ink sm:text-[2.6rem]">
+          <h1 className="mt-3 font-display text-[2.1rem] font-bold leading-[1.08] tracking-[-0.02em] text-ink sm:text-[2.6rem]">
             {order.bookTitle}
           </h1>
           {order.bookSubtitle ? (
@@ -73,7 +71,7 @@ export default async function OrderPage({
             }}
           >
             <p
-              className="font-cover text-xl font-bold"
+              className="font-display text-xl font-bold"
               style={{ color: order.track.art.deep }}
             >
               {order.track.name}
@@ -108,7 +106,17 @@ export default async function OrderPage({
         </p>
       ) : storyPages ? (
         <>
-          {illustrating || waitingOnStory ? <RefreshWhileGenerating orderId={order.id} /> : null}
+          {stillWorking ? (
+            <>
+              <RefreshWhileGenerating orderId={order.id} />
+              <BookInProgress
+                status={order.bookStatus}
+                track={order.track}
+                childName={order.children[0]?.name ?? "your child"}
+                startedAtIso={order.createdAt}
+              />
+            </>
+          ) : null}
           {order.bookStatus === "failed" && !order.illustrationUrls?.some(Boolean) ? (
             <p className="mt-10 rounded-2xl border border-rule bg-cream/80 px-5 py-4 text-sm text-ink-soft">
               Your order was saved! Your story is ready below. We&apos;re still
@@ -125,9 +133,12 @@ export default async function OrderPage({
       ) : (
         <>
           {waitingOnStory ? <RefreshWhileGenerating orderId={order.id} /> : null}
-          <p className="mt-10 rounded-2xl border border-rule bg-cream/80 px-5 py-4 text-sm text-ink-soft">
-            Your story is being written&hellip;
-          </p>
+          <BookInProgress
+            status={order.bookStatus}
+            track={order.track}
+            childName={order.children[0]?.name ?? "your child"}
+            startedAtIso={order.createdAt}
+          />
         </>
       )}
 

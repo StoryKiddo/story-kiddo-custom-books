@@ -35,7 +35,7 @@ export default async function CreatePage({
           className="relative overflow-hidden rounded-[28px] border border-ink/10 shadow-[0_1px_0_rgba(255,255,255,0.6)_inset,0_18px_32px_-24px_rgba(36,28,22,0.5)]"
         >
           <div className="relative aspect-[5/3]">
-            <ThemeArt track={track} />
+            <ThemeArt track={track} instance="aside" />
             <div
               aria-hidden="true"
               className="absolute inset-x-0 bottom-0 h-2/3"
@@ -53,7 +53,7 @@ export default async function CreatePage({
               >
                 Your theme
               </p>
-              <h1 className="cover-type mt-1 font-cover text-[2rem] font-bold leading-none text-[#fffaf4]">
+              <h1 className="mt-1 font-display text-[2rem] font-bold leading-none text-[#fffaf4]">
                 {track.name}
               </h1>
             </div>
@@ -76,16 +76,6 @@ export default async function CreatePage({
       </aside>
 
       <section className="paper-grain relative rounded-[28px] border border-rule bg-cream/85 p-6 shadow-[0_1px_0_rgba(255,255,255,0.6)_inset,0_18px_32px_-28px_rgba(36,28,22,0.4)] sm:p-8">
-        <p className="text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-sage">
-          Last step
-        </p>
-        <h2 className="mt-2 font-cover text-[1.8rem] font-bold leading-tight text-ink sm:text-[2.1rem]">
-          Tell us about your child
-        </h2>
-        <p className="mt-2 mb-8 text-ink-soft">
-          We&apos;ll use this to personalize the story — name, age, interests, and
-          an optional note. You can include up to four children in the same book.
-        </p>
         <ChildDetailsForm track={track} />
       </section>
     </div>

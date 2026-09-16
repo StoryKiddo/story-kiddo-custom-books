@@ -39,7 +39,7 @@ export function TrackCard({
 
       <div className="paper-grain relative flex flex-1 flex-col gap-2 px-5 pb-5 pt-1">
         <h3
-          className="font-cover text-[1.4rem] font-bold leading-tight tracking-[-0.01em]"
+          className="font-display text-[1.4rem] font-bold leading-tight tracking-[-0.01em]"
           style={{ color: deep }}
         >
           {track.name}

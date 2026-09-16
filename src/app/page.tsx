@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { HomeHero } from "@/components/home-hero";
+import { BestsellerRail, HomeHero } from "@/components/home-hero";
 import { HowItWorks } from "@/components/how-it-works";
 import { TrackCard } from "@/components/track-card";
 import { THEME_GALLERY_HREF, themeTileHref } from "@/lib/track-links";
@@ -9,6 +9,8 @@ export default function HomePage() {
   return (
     <div>
       <HomeHero />
+
+      <BestsellerRail tracks={TRACKS} />
 
       <section
         id="how-it-works"

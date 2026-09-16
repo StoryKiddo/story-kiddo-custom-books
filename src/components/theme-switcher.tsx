@@ -40,7 +40,7 @@ export function ThemeSwitcher({
                       : `0 0 0 1px ${withAlpha(track.art.deep, 0.25)}`,
                   }}
                 >
-                  <ThemeArt track={track} portrait />
+                  <ThemeArt track={track} shape="square" instance="switcher" />
                   <span
                     aria-hidden="true"
                     className="absolute inset-0 transition group-hover:opacity-0"
