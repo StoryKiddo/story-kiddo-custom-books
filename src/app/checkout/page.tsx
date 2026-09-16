@@ -34,8 +34,8 @@ export default async function CheckoutPage({
       ) : (
         <p className="mt-6 rounded-2xl border border-rule bg-cream/80 px-5 py-4 text-sm text-ink-soft">
           If you just created a book, open it from the confirmation link we
-          showed after checkout is ready. For now you can browse themes or go
-          home.
+          showed after checkout is ready. For now you can open the Alphabet book
+          or go home.
         </p>
       )}
       <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
@@ -51,7 +51,7 @@ export default async function CheckoutPage({
           href="/themes"
           className="inline-flex items-center justify-center rounded-full border border-ink/12 bg-cream/80 px-6 py-3 text-sm font-semibold text-ink transition hover:bg-cream"
         >
-          Browse themes
+          Browse Alphabet
         </Link>
         <Link
           href="/"

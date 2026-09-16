@@ -1,12 +1,12 @@
+import Image from "next/image";
 import Link from "next/link";
-import { ThemeArt } from "@/components/theme-art";
 import { withAlpha } from "@/lib/color";
+import { BRAND_IMAGE_SIZE, tileSrc } from "@/lib/brand-art";
 import type { Track } from "@/lib/tracks";
 
 /**
- * A theme tile: an illustrated scene torn along a deckled paper edge, over a
- * cream panel carrying the copy. The whole tile is one link straight to the
- * personalize step for that theme.
+ * A theme tile: the supplied scene image over a cream panel carrying the copy.
+ * The whole tile is one link straight to the personalize step for that theme.
  */
 export function TrackCard({
   track,
@@ -26,7 +26,14 @@ export function TrackCard({
     >
       <div className="relative aspect-[4/3] overflow-hidden">
         <div className="theme-tile-art absolute inset-0">
-          <ThemeArt track={track} />
+          <Image
+            src={tileSrc(track.slug)}
+            alt=""
+            width={BRAND_IMAGE_SIZE.tile.width}
+            height={BRAND_IMAGE_SIZE.tile.height}
+            sizes="(min-width: 1024px) 18rem, (min-width: 640px) 45vw, 92vw"
+            className="h-full w-full object-cover object-center"
+          />
         </div>
         <span
           className="absolute right-3.5 top-3.5 rounded-full px-2.5 py-1 text-[0.62rem] font-semibold uppercase tracking-[0.14em] shadow-[0_2px_6px_-2px_rgba(36,28,22,0.35)]"

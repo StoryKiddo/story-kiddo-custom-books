@@ -140,40 +140,77 @@ export function normalizeForProof(text: string): string {
     .trim();
 }
 
+export const COVER_PROOF_UNREADABLE = "No text could be read on the cover.";
+export const COVER_PROOF_UNVERIFIED = "Cover lettering could not be verified.";
+export const COVER_PROOF_EXTRA_TEXT = "Unexpected extra text was found on the cover.";
+
+/** Honest, customer-safe copy when cover proofing is exhausted. */
+export const COVER_CUSTOMER_RETRY_MESSAGE =
+  "We couldn't finish a cover we're happy showing you. Your order is saved — please try creating the book again.";
+
+export type CoverAttemptDecision = "accept" | "retry" | "reject";
+
 export type CoverProofInput = {
   /** The text an image-reading model says it can see on the cover. */
-  readText: string;
+  readText: string | null | undefined;
   childNames: string[];
   lockup: CoverLockup;
+  dedication: string;
 };
 
+export class CoverVerificationError extends Error {
+  readonly code = "COVER_VERIFICATION_FAILED" as const;
+  readonly issues: string[];
+
+  constructor(issues: string[]) {
+    const list = issues.length > 0 ? issues : [COVER_PROOF_UNVERIFIED];
+    super(list.join(" "));
+    this.name = "CoverVerificationError";
+    this.issues = list;
+  }
+}
+
+export function isCoverVerificationError(error: unknown): error is CoverVerificationError {
+  if (!error || typeof error !== "object") return false;
+  const candidate = error as { name?: string; code?: string };
+  return candidate.name === "CoverVerificationError" || candidate.code === "COVER_VERIFICATION_FAILED";
+}
+
 /**
- * Problems worth repainting for. Only the parts a parent would notice as
- * wrong: a missing or misspelled name, or a missing title line.
+ * Problems that fail the cover. Every required title line, each child's name,
+ * the connector, and the dedication must be present; extra or garbled visible
+ * text fails too. A missing or unusable read-back is a failed verification,
+ * never a pass.
  */
 export function coverProofIssues(input: CoverProofInput): string[] {
+  if (input.readText == null) {
+    return [COVER_PROOF_UNVERIFIED];
+  }
+
   const seen = normalizeForProof(input.readText);
-  if (seen.length === 0) {
-    return ["No text could be read on the cover."];
+  if (seen.length === 0 || seen === "none") {
+    return [COVER_PROOF_UNREADABLE];
   }
 
   const issues: string[] = [];
-  for (const name of input.childNames) {
-    const target = normalizeForProof(name);
-    if (!target) continue;
-    // Whole-word match: "Mia" must not be satisfied by "Miable".
-    const pattern = new RegExp(`(^| )${escapeRegExp(target)}( |$)`);
-    if (!pattern.test(seen)) {
-      issues.push(`"${name}" is not spelled correctly on the cover.`);
+  const required = requiredCoverPhrases(input);
+
+  for (const item of required) {
+    if (!containsSequence(tokenize(seen), item.tokens)) {
+      issues.push(item.label);
     }
   }
 
-  const rest = normalizeForProof(input.lockup.rest);
-  if (rest && !seen.includes(rest)) {
-    issues.push(`The title line "${input.lockup.rest}" is missing from the cover.`);
+  let leftover = tokenize(seen);
+  for (const item of [...required].sort((a, b) => b.tokens.length - a.tokens.length)) {
+    leftover = removeAllSequences(leftover, item.tokens);
   }
 
-  return issues;
+  if (leftover.some((token) => !isSceneLetter(token))) {
+    issues.push(COVER_PROOF_EXTRA_TEXT);
+  }
+
+  return uniqueStrings(issues);
 }
 
 export function coverPassesProof(input: CoverProofInput): boolean {
@@ -184,6 +221,17 @@ export function shouldRepaintCover(attempt: number, issues: string[]): boolean {
   return issues.length > 0 && attempt < MAX_COVER_ATTEMPTS;
 }
 
+/** Accept only a fully verified cover. Retry until the last attempt, then reject. */
+export function decideCoverAttempt(attempt: number, issues: string[]): CoverAttemptDecision {
+  if (issues.length === 0) return "accept";
+  if (shouldRepaintCover(attempt, issues)) return "retry";
+  return "reject";
+}
+
+export function shouldSaveGeneratedCover(decision: CoverAttemptDecision): boolean {
+  return decision === "accept";
+}
+
 /** Extra instruction added to the prompt when a repaint is needed. */
 export function repaintNote(issues: string[]): string {
   return `\n\nThe previous attempt got the lettering wrong: ${issues.join(
@@ -191,6 +239,84 @@ export function repaintNote(issues: string[]): string {
   )} Paint the cover again and spell every word exactly as written above.`;
 }
 
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+type RequiredPhrase = {
+  label: string;
+  tokens: string[];
+};
+
+function requiredCoverPhrases(input: CoverProofInput): RequiredPhrase[] {
+  const phrases: RequiredPhrase[] = [];
+
+  for (const name of input.childNames) {
+    const tokens = tokenize(name);
+    if (tokens.length === 0) continue;
+    phrases.push({
+      label: `"${name}" is not spelled correctly on the cover.`,
+      tokens,
+    });
+  }
+
+  if (input.lockup.lead) {
+    phrases.push({
+      label: `The title line "${input.lockup.lead}" is missing from the cover.`,
+      tokens: tokenize(input.lockup.lead),
+    });
+  }
+  if (input.lockup.connector) {
+    phrases.push({
+      label: `The title line "${input.lockup.connector}" is missing from the cover.`,
+      tokens: tokenize(input.lockup.connector),
+    });
+  }
+  if (input.lockup.rest) {
+    phrases.push({
+      label: `The title line "${input.lockup.rest}" is missing from the cover.`,
+      tokens: tokenize(input.lockup.rest),
+    });
+  }
+  if (input.dedication) {
+    phrases.push({
+      label: `The dedication "${input.dedication}" is missing from the cover.`,
+      tokens: tokenize(input.dedication),
+    });
+  }
+
+  return phrases.filter((item) => item.tokens.length > 0);
+}
+
+function tokenize(text: string): string[] {
+  const normalized = normalizeForProof(text);
+  return normalized ? normalized.split(" ").filter(Boolean) : [];
+}
+
+function containsSequence(haystack: string[], needle: string[]): boolean {
+  return removeSequence(haystack, needle) !== null;
+}
+
+function removeSequence(haystack: string[], needle: string[]): string[] | null {
+  if (needle.length === 0) return haystack;
+  for (let i = 0; i <= haystack.length - needle.length; i++) {
+    if (needle.every((word, offset) => haystack[i + offset] === word)) {
+      return [...haystack.slice(0, i), ...haystack.slice(i + needle.length)];
+    }
+  }
+  return null;
+}
+
+function removeAllSequences(haystack: string[], needle: string[]): string[] {
+  let current = haystack;
+  while (true) {
+    const next = removeSequence(current, needle);
+    if (!next) return current;
+    current = next;
+  }
+}
+
+/** Wooden alphabet blocks and other single-letter props are not title lettering. */
+function isSceneLetter(token: string): boolean {
+  return /^[a-z]$/.test(token);
+}
+
+function uniqueStrings(values: string[]): string[] {
+  return [...new Set(values)];
 }

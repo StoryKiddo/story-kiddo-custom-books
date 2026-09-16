@@ -1,20 +1,14 @@
 /**
- * A standing hardcover — the rasterized 3D mockup for a theme, painted by
- * `scripts/generate-art.ts`. The title is part of the artwork, so nothing is
- * typeset on top of it here.
+ * A standing hardcover — the supplied 3D mockup for a theme. The title is
+ * painted into the artwork, so nothing is typeset on top of it here.
  */
 
 import Image from "next/image";
+import { BRAND_IMAGE_SIZE, mockupSrc } from "@/lib/brand-art";
 import { personalizedBookCopy } from "@/lib/book-title";
 import type { Track } from "@/lib/tracks";
 
-export function mockupSrc(slug: string): string {
-  return `/brand/mockups/${slug}.png`;
-}
-
-export function coverSrc(slug: string): string {
-  return `/brand/covers/${slug}.png`;
-}
+export { coverSrc, mockupSrc } from "@/lib/brand-art";
 
 /** The invented child each example cover stars, matching the generated art. */
 export const EXAMPLE_CHILDREN: Record<string, string> = {
@@ -47,11 +41,12 @@ export function BookMockup({
   return (
     <Image
       src={mockupSrc(track.slug)}
-      alt={`${exampleTitle(track)} — an example Story Kiddo ${track.name.toLowerCase()} book`}
-      width={1100}
-      height={1240}
+      alt={`${exampleTitle(track)} — an example Story Kiddo ${track.name.toLowerCase()} hardcover`}
+      width={BRAND_IMAGE_SIZE.mockup.width}
+      height={BRAND_IMAGE_SIZE.mockup.height}
       sizes={sizes}
-      priority={priority}
+      preload={priority}
+      loading={priority ? "eager" : "lazy"}
       className={`book-mockup h-auto w-full ${className}`}
     />
   );

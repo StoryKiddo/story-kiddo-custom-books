@@ -11,6 +11,7 @@
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
+import { BRAND_IMAGE_SIZE, HERO_PRESS_SRC } from "@/lib/brand-art";
 import { withAlpha } from "@/lib/color";
 import {
   GENERATION_STAGES,
@@ -59,10 +60,10 @@ export function BookInProgress({
     >
       <div className="relative grid gap-6 p-6 sm:grid-cols-[minmax(0,15rem)_minmax(0,1fr)] sm:items-center sm:gap-8 sm:p-8">
         <Image
-          src="/brand/hero/book-press.png"
+          src={HERO_PRESS_SRC}
           alt=""
-          width={1200}
-          height={900}
+          width={BRAND_IMAGE_SIZE.press.width}
+          height={BRAND_IMAGE_SIZE.press.height}
           sizes="(min-width: 640px) 15rem, 80vw"
           className="h-auto w-full rounded-2xl"
         />

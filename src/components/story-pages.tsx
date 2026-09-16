@@ -7,7 +7,6 @@
  */
 
 import { StoryPanel } from "@/components/story-panel";
-import { ThemeArt } from "@/components/theme-art";
 import { withAlpha } from "@/lib/color";
 import { illustrationSlot } from "@/lib/illustration-prompt";
 import { PREVIEW_STORY_PAGE_COUNT } from "@/lib/personalization";
@@ -87,9 +86,12 @@ function StoryPage({
             className="aspect-[4/5] w-full object-cover sm:aspect-[16/10]"
           />
         ) : (
-          <div className="aspect-[4/5] w-full sm:aspect-[16/10]">
-            <ThemeArt track={track} instance={`page-${number}`} />
-          </div>
+          <div
+            className="aspect-[4/5] w-full sm:aspect-[16/10]"
+            style={{
+              background: `linear-gradient(180deg, ${withAlpha(accent, 0.35)}, ${withAlpha(accent, 0.12)})`,
+            }}
+          />
         )}
         <PageNumber number={number} deep={deep} />
         {painting ? (

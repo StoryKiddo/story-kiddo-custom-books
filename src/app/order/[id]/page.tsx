@@ -4,11 +4,12 @@ import { BookInProgress } from "@/components/book-in-progress";
 import { OrderCover } from "@/components/order-cover";
 import { RefreshWhileGenerating } from "@/components/refresh-while-generating";
 import { StoryPages } from "@/components/story-pages";
+import { COVER_CUSTOMER_RETRY_MESSAGE } from "@/lib/cover-prompt";
 import { checkoutHref } from "@/lib/checkout-order";
 import { withAlpha } from "@/lib/color";
 import { formatOrderNumberLabel } from "@/lib/order-number";
 import { formatStarsLine, getOrderSummary } from "@/lib/orders";
-import { THEME_GALLERY_HREF } from "@/lib/track-links";
+import { createHrefForLaunchTrack } from "@/lib/track-links";
 
 export const dynamic = "force-dynamic";
 
@@ -45,6 +46,7 @@ export default async function OrderPage({
           title={order.bookTitle}
           coverUrl={order.coverUrl}
           pending={stillWorking}
+          failed={order.bookStatus === "failed"}
         />
 
         <div className="lg:pt-2">
@@ -83,17 +85,19 @@ export default async function OrderPage({
             </p>
           </div>
 
-          <Link
-            href={checkoutHref({
-              id: order.id,
-              isDemo: order.isDemo,
-              trackSlug: order.track.slug,
-              children: order.children,
-            })}
-            className="mt-7 flex w-full items-center justify-center rounded-full bg-coral px-6 py-4 text-center text-base font-semibold tracking-[0.16em] text-white shadow-[0_1px_0_rgba(255,255,255,0.2)_inset,0_10px_20px_-8px_rgba(181,78,53,0.7)] transition hover:bg-coral-dark sm:py-5 sm:text-lg"
-          >
-            BRING TO LIFE
-          </Link>
+          {order.bookStatus === "failed" ? null : (
+            <Link
+              href={checkoutHref({
+                id: order.id,
+                isDemo: order.isDemo,
+                trackSlug: order.track.slug,
+                children: order.children,
+              })}
+              className="mt-7 flex w-full items-center justify-center rounded-full bg-coral px-6 py-4 text-center text-base font-semibold tracking-[0.16em] text-white shadow-[0_1px_0_rgba(255,255,255,0.2)_inset,0_10px_20px_-8px_rgba(181,78,53,0.7)] transition hover:bg-coral-dark sm:py-5 sm:text-lg"
+            >
+              BRING TO LIFE
+            </Link>
+          )}
         </div>
       </div>
 
@@ -118,18 +122,16 @@ export default async function OrderPage({
               />
             </>
           ) : null}
-          {order.bookStatus === "failed" && !order.illustrationUrls?.some(Boolean) ? (
+          {order.bookStatus === "failed" ? (
             <p className="mt-10 rounded-2xl border border-rule bg-cream/80 px-5 py-4 text-sm text-ink-soft">
-              Your order was saved! Your story is ready below. We&apos;re still
-              finishing the pictures — check back in a moment.
+              {COVER_CUSTOMER_RETRY_MESSAGE}
             </p>
           ) : null}
           <StoryPages pages={storyPages} track={order.track} illustrating={illustrating} />
         </>
       ) : order.bookStatus === "failed" ? (
         <p className="mt-10 rounded-2xl border border-rule bg-cream/80 px-5 py-4 text-sm text-ink-soft">
-          Your order was saved! We&apos;re finishing up your story — check back
-          in a moment.
+          {COVER_CUSTOMER_RETRY_MESSAGE}
         </p>
       ) : (
         <>
@@ -145,7 +147,7 @@ export default async function OrderPage({
 
       <div className="mt-10 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
         <Link
-          href={THEME_GALLERY_HREF}
+          href={createHrefForLaunchTrack()}
           className="font-semibold text-ink-soft underline decoration-coral/40 underline-offset-4 transition hover:text-ink"
         >
           Create another book

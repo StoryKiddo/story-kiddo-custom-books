@@ -2,21 +2,31 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { coverLockup, dedicationLine, personalizedBookCopy } from "./book-title.ts";
 import {
+  COVER_CUSTOMER_RETRY_MESSAGE,
+  COVER_PROOF_EXTRA_TEXT,
+  COVER_PROOF_UNREADABLE,
+  COVER_PROOF_UNVERIFIED,
+  CoverVerificationError,
   MAX_COVER_ATTEMPTS,
   buildCoverPrompt,
   coverObjectPath,
   coverPassesProof,
   coverProofIssues,
+  decideCoverAttempt,
+  isCoverVerificationError,
   letteringStyleFor,
   normalizeForProof,
   repaintNote,
   shouldRepaintCover,
+  shouldSaveGeneratedCover,
 } from "./cover-prompt.ts";
 import { TRACKS, getTrackBySlug } from "./tracks.ts";
 
 const track = getTrackBySlug("alphabet")!;
 const children = [{ name: "Mia", age: 4, photoPath: "c/1.jpg" }];
 const lockup = coverLockup(personalizedBookCopy([{ name: "Mia" }], track).title);
+const dedication = dedicationLine("Mom and Dad");
+const proofBase = { childNames: ["Mia"] as string[], lockup, dedication };
 
 describe("cover prompt", () => {
   it("asks for the title to be painted into the art, not typeset on top", () => {
@@ -67,67 +77,127 @@ describe("cover prompt", () => {
 describe("cover proofing", () => {
   it("passes a cover whose text reads back correctly", () => {
     const readText = "Mia\nand the\nGreat Alphabet Quest\nFrom Mom and Dad";
-    assert.equal(coverPassesProof({ readText, childNames: ["Mia"], lockup }), true);
+    assert.equal(coverPassesProof({ readText, ...proofBase }), true);
   });
 
   it("ignores case, accents, and punctuation in the read-back", () => {
-    const readText = "MÍA and the GREAT ALPHABET QUEST!";
-    assert.equal(coverPassesProof({ readText, childNames: ["Mia"], lockup }), true);
+    const readText = "MÍA and the GREAT ALPHABET QUEST! From Mom and Dad";
+    assert.equal(coverPassesProof({ readText, ...proofBase }), true);
   });
 
   it("catches a misspelled name", () => {
     const issues = coverProofIssues({
-      readText: "Mai and the Great Alphabet Quest",
-      childNames: ["Mia"],
-      lockup,
+      readText: "Mai and the Great Alphabet Quest From Mom and Dad",
+      ...proofBase,
     });
-    assert.equal(issues.length, 1);
-    assert.match(issues[0], /"Mia" is not spelled correctly/);
+    assert.ok(issues.some((issue) => /"Mia" is not spelled correctly/.test(issue)));
   });
 
   it("does not accept a name buried inside another word", () => {
     const issues = coverProofIssues({
-      readText: "Miabelle and the Great Alphabet Quest",
-      childNames: ["Mia"],
-      lockup,
+      readText: "Miabelle and the Great Alphabet Quest From Mom and Dad",
+      ...proofBase,
     });
-    assert.equal(issues.length, 1);
+    assert.ok(issues.some((issue) => /"Mia" is not spelled correctly/.test(issue)));
   });
 
   it("catches a missing title line", () => {
-    const issues = coverProofIssues({ readText: "Mia", childNames: ["Mia"], lockup });
-    assert.equal(issues.length, 1);
-    assert.match(issues[0], /title line/);
+    const issues = coverProofIssues({ readText: "Mia From Mom and Dad", ...proofBase });
+    assert.ok(issues.some((issue) => /Great Alphabet Quest/.test(issue)));
+  });
+
+  it("fails when the connector words are missing", () => {
+    const issues = coverProofIssues({
+      readText: "Mia Great Alphabet Quest From Mom and Dad",
+      ...proofBase,
+    });
+    assert.ok(issues.some((issue) => /and the/.test(issue)));
+  });
+
+  it("fails when the dedication is missing", () => {
+    const issues = coverProofIssues({
+      readText: "Mia and the Great Alphabet Quest",
+      ...proofBase,
+    });
+    assert.ok(issues.some((issue) => /dedication/.test(issue)));
+    assert.ok(issues.some((issue) => /From Mom and Dad/.test(issue)));
+  });
+
+  it("fails extra or garbled visible text", () => {
+    const extra = coverProofIssues({
+      readText: "Mia and the Great Alphabet Quest From Mom and Dad Story Kiddo",
+      ...proofBase,
+    });
+    assert.ok(extra.includes(COVER_PROOF_EXTRA_TEXT));
+
+    const garbled = coverProofIssues({
+      readText: "Mia and the Great Alphabet Qwest From Mom and Dad",
+      ...proofBase,
+    });
+    assert.ok(garbled.some((issue) => /Great Alphabet Quest/.test(issue)));
+    assert.ok(garbled.includes(COVER_PROOF_EXTRA_TEXT));
+  });
+
+  it("treats alphabet-block letters as scene props, not extra title text", () => {
+    const readText = "Mia and the Great Alphabet Quest From Mom and Dad A B C D E";
+    assert.equal(coverPassesProof({ readText, ...proofBase }), true);
+  });
+
+  it("treats a NONE transcript as unreadable, not a pass", () => {
+    assert.deepEqual(coverProofIssues({ readText: "NONE", ...proofBase }), [COVER_PROOF_UNREADABLE]);
   });
 
   it("treats an unreadable cover as a failure", () => {
-    const issues = coverProofIssues({ readText: "   ", childNames: ["Mia"], lockup });
-    assert.deepEqual(issues, ["No text could be read on the cover."]);
+    const issues = coverProofIssues({ readText: "   ", ...proofBase });
+    assert.deepEqual(issues, [COVER_PROOF_UNREADABLE]);
+  });
+
+  it("treats a proofreader outage as a failed verification, not a pass", () => {
+    assert.deepEqual(coverProofIssues({ readText: null, ...proofBase }), [COVER_PROOF_UNVERIFIED]);
+    assert.deepEqual(coverProofIssues({ readText: undefined, ...proofBase }), [
+      COVER_PROOF_UNVERIFIED,
+    ]);
+    assert.equal(coverPassesProof({ readText: null, ...proofBase }), false);
+    assert.equal(decideCoverAttempt(1, [COVER_PROOF_UNVERIFIED]), "retry");
+    assert.equal(decideCoverAttempt(MAX_COVER_ATTEMPTS, [COVER_PROOF_UNVERIFIED]), "reject");
+    assert.equal(shouldSaveGeneratedCover("retry"), false);
+    assert.equal(shouldSaveGeneratedCover("reject"), false);
   });
 
   it("checks every child on a shared book", () => {
     const shared = coverLockup("Mia & Theo and the Great Alphabet Quest");
-    const issues = coverProofIssues({
-      readText: "Mia & Theo and the Great Alphabet Quest",
+    const sharedBase = {
       childNames: ["Mia", "Theo"],
       lockup: shared,
+      dedication,
+    };
+    const issues = coverProofIssues({
+      readText: "Mia & Theo and the Great Alphabet Quest From Mom and Dad",
+      ...sharedBase,
     });
     assert.deepEqual(issues, []);
 
     const bad = coverProofIssues({
-      readText: "Mia & Teo and the Great Alphabet Quest",
-      childNames: ["Mia", "Theo"],
-      lockup: shared,
+      readText: "Mia & Teo and the Great Alphabet Quest From Mom and Dad",
+      ...sharedBase,
     });
-    assert.equal(bad.length, 1);
+    assert.ok(bad.some((issue) => /Theo/.test(issue)));
   });
 
-  it("repaints while attempts are left, then gives up", () => {
+  it("rejects after the last attempt instead of saving an unverified cover", () => {
     const issues = ['"Mia" is not spelled correctly on the cover.'];
     assert.equal(shouldRepaintCover(1, issues), true);
     assert.equal(shouldRepaintCover(MAX_COVER_ATTEMPTS - 1, issues), true);
     assert.equal(shouldRepaintCover(MAX_COVER_ATTEMPTS, issues), false);
     assert.equal(shouldRepaintCover(1, []), false);
+    assert.equal(decideCoverAttempt(1, issues), "retry");
+    assert.equal(decideCoverAttempt(MAX_COVER_ATTEMPTS - 1, issues), "retry");
+    assert.equal(decideCoverAttempt(MAX_COVER_ATTEMPTS, issues), "reject");
+    assert.equal(decideCoverAttempt(MAX_COVER_ATTEMPTS, []), "accept");
+    assert.equal(shouldSaveGeneratedCover("accept"), true);
+    assert.equal(shouldSaveGeneratedCover("reject"), false);
+    assert.equal(isCoverVerificationError(new CoverVerificationError(issues)), true);
+    assert.match(COVER_CUSTOMER_RETRY_MESSAGE, /try creating the book again/);
   });
 
   it("tells the model what went wrong when repainting", () => {

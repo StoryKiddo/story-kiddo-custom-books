@@ -19,7 +19,7 @@ export function SiteFooter() {
               href="/themes"
               className="underline decoration-coral/50 underline-offset-4 hover:text-ink"
             >
-              Browse educational themes
+              The Alphabet book
             </Link>
           </p>
         </div>

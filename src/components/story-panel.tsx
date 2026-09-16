@@ -8,7 +8,7 @@
  */
 
 import { withAlpha } from "@/lib/color";
-import type { Track } from "@/lib/tracks";
+import { isLaunchTrack, type Track } from "@/lib/tracks";
 
 export type PanelKind = "scroll" | "cloud" | "sign" | "paper";
 
@@ -41,6 +41,10 @@ export function StoryPanel({
   children: React.ReactNode;
   kind?: PanelKind;
 }) {
+  if (isLaunchTrack(track.slug)) {
+    return <ParchmentPanel>{children}</ParchmentPanel>;
+  }
+
   const panel = kind ?? panelKindFor(track.slug);
   const { deep, accent } = track.art;
   const capHeight = panel === "cloud" ? 56 : panel === "sign" ? 30 : 34;
@@ -63,6 +67,16 @@ export function StoryPanel({
         }}
       >
         {children}
+      </div>
+    </div>
+  );
+}
+
+function ParchmentPanel({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="relative mx-auto w-full max-w-[46rem]">
+      <div className="story-parchment relative">
+        <div className="relative px-1 py-2 sm:px-2 sm:py-3">{children}</div>
       </div>
     </div>
   );

@@ -169,6 +169,20 @@ h3,
   animation: ink-pulse 1.5s ease-in-out infinite;
 }
 
+.story-parchment {
+  /* Background-image (not border-image) so the blank center stays empty
+     and the WebP's transparent surround composites over the page instead
+     of painting as black. */
+  padding: 2.4rem 4.6rem;
+  background: url("/brand/panels/parchment.webp") center / 100% 100% no-repeat;
+}
+
+@media (min-width: 640px) {
+  .story-parchment {
+    padding: 2.8rem 5.4rem;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .theme-tile,
   .theme-tile:hover,

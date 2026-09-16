@@ -2,8 +2,8 @@
 const STEPS = [
   {
     n: "1",
-    title: "Choose a theme",
-    body: "Pick the lesson you want the story to carry — letters, numbers, feelings, first days, and more.",
+    title: "Start with Alphabet",
+    body: "Open the Alphabet book and add your child's name, photo, and the details that make the story theirs.",
   },
   {
     n: "2",

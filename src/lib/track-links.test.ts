@@ -2,10 +2,11 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   THEME_GALLERY_HREF,
+  createHrefForLaunchTrack,
   createHrefForTrack,
   themeTileHref,
 } from "./track-links.ts";
-import { TRACKS, getTrackBySlug } from "./tracks.ts";
+import { TRACKS, customerFacingTracks, getTrackBySlug, isLaunchTrack } from "./tracks.ts";
 
 describe("createHrefForTrack", () => {
   it("links to the personalize step with the track in the query", () => {
@@ -40,5 +41,17 @@ describe("themeTileHref", () => {
       ).searchParams.get("track");
       assert.equal(getTrackBySlug(slug)?.slug, track.slug);
     }
+  });
+});
+
+describe("launch catalog", () => {
+  it("ships only the Alphabet book to customers", () => {
+    assert.deepEqual(
+      customerFacingTracks().map((track) => track.slug),
+      ["alphabet"],
+    );
+    assert.equal(isLaunchTrack("alphabet"), true);
+    assert.equal(isLaunchTrack("numbers"), false);
+    assert.equal(createHrefForLaunchTrack(), "/create?track=alphabet");
   });
 });

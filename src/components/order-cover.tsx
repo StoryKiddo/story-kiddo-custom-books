@@ -2,11 +2,10 @@
  * The cover on the order page.
  *
  * The title is lettered into the cover art by the image pipeline, so nothing
- * is typeset over the picture here. Until that art exists, the plate shows the
- * theme's scene behind an honest "still being painted" state.
+ * is typeset over the picture here. Until that art exists, the plate shows an
+ * honest in-progress or failed state — never a stand-in example cover.
  */
 
-import { ThemeArt } from "@/components/theme-art";
 import { withAlpha } from "@/lib/color";
 import type { Track } from "@/lib/tracks";
 
@@ -15,12 +14,14 @@ export function OrderCover({
   title,
   coverUrl,
   pending,
+  failed = false,
 }: {
   track: Track;
   title: string;
   coverUrl: string | null;
   /** True while the cover art is still being generated. */
   pending: boolean;
+  failed?: boolean;
 }) {
   const { deep } = track.art;
 
@@ -41,9 +42,12 @@ export function OrderCover({
           <img src={coverUrl} alt={`Cover of ${title}`} className="h-full w-full object-cover" />
         ) : (
           <>
-            <div className="absolute inset-0 blur-[2px]">
-              <ThemeArt track={track} shape="square" instance="order" />
-            </div>
+            <div
+              className="absolute inset-0"
+              style={{
+                background: `linear-gradient(160deg, ${track.art.skyTop}, ${track.cover})`,
+              }}
+            />
             <div
               aria-hidden="true"
               className="absolute inset-0"
@@ -52,12 +56,18 @@ export function OrderCover({
             <div className="absolute inset-0 flex flex-col items-center justify-center px-8 text-center">
               {pending ? <CoverPress /> : null}
               <p className="mt-5 font-display text-xl font-bold text-cream">
-                {pending ? "Lettering your cover" : "Your cover is on its way"}
+                {failed
+                  ? "We couldn't finish this cover"
+                  : pending
+                    ? "Lettering your cover"
+                    : "Your cover is on its way"}
               </p>
               <p className="mt-2 text-sm leading-relaxed" style={{ color: withAlpha("#fffaf3", 0.85) }}>
-                {pending
-                  ? "The title and your child's name are painted into the picture, not printed on top."
-                  : "We'll paint the cover as soon as the story is finished."}
+                {failed
+                  ? "Please try creating the book again. Your order is saved."
+                  : pending
+                    ? "The title and your child's name are painted into the picture, not printed on top."
+                    : "We'll paint the cover as soon as the story is finished."}
               </p>
             </div>
           </>
@@ -76,7 +86,7 @@ export function OrderCover({
         />
       </div>
       <figcaption className="mt-4 text-center text-xs font-semibold uppercase tracking-[0.18em] text-ink-soft">
-        {coverUrl ? "Your cover" : "Cover in progress"}
+        {coverUrl ? "Your cover" : failed ? "Cover not ready" : "Cover in progress"}
       </figcaption>
     </figure>
   );

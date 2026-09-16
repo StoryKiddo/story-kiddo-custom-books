@@ -290,5 +290,8 @@ describe("illustration upload cache headers", () => {
     assert.match(pipeline, /upload\(coverPath, cover\.png/);
     assert.doesNotMatch(pipeline, /immutable/);
     assert.doesNotMatch(pipeline, /31536000/);
+    assert.doesNotMatch(pipeline, /accepting the cover as painted/);
+    assert.match(pipeline, /CoverVerificationError/);
+    assert.match(pipeline, /shouldSaveGeneratedCover/);
   });
 });

@@ -8,6 +8,7 @@
  */
 
 import type { BookStatus } from "./supabase/types.ts";
+import { COVER_CUSTOMER_RETRY_MESSAGE } from "./cover-prompt.ts";
 
 /**
  * The ceiling the create route gives generation (`export const maxDuration`).
@@ -63,7 +64,7 @@ export function generationStage(status: BookStatus): GenerationStage {
       return {
         index: GENERATION_STAGES.length,
         label: "Needs another go",
-        note: "Something went wrong while we were making this one.",
+        note: COVER_CUSTOMER_RETRY_MESSAGE,
         done: true,
         failed: true,
       };

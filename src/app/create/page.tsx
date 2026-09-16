@@ -1,11 +1,18 @@
 import type { Metadata } from "next";
-import { notFound, redirect } from "next/navigation";
+import Image from "next/image";
+import Link from "next/link";
+import { redirect } from "next/navigation";
 import { ChildDetailsForm } from "@/components/child-details-form";
-import { ThemeArt } from "@/components/theme-art";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { withAlpha } from "@/lib/color";
-import { THEME_GALLERY_HREF } from "@/lib/track-links";
-import { TRACKS, getTrackBySlug } from "@/lib/tracks";
+import { BRAND_IMAGE_SIZE, tileSrc } from "@/lib/brand-art";
+import { createHrefForLaunchTrack } from "@/lib/track-links";
+import {
+  customerFacingTracks,
+  getTrackBySlug,
+  isLaunchTrack,
+  launchTrack,
+} from "@/lib/tracks";
 
 export const metadata: Metadata = {
   title: "Personalize your book",
@@ -20,22 +27,28 @@ export default async function CreatePage({
 }) {
   const { track: slug } = await searchParams;
   if (!slug) {
-    redirect(THEME_GALLERY_HREF);
+    redirect(createHrefForLaunchTrack());
   }
 
   const track = getTrackBySlug(slug);
-  if (!track) {
-    notFound();
+  if (!track || !isLaunchTrack(track.slug)) {
+    return <ThemeComingSoon requestedName={track?.name ?? null} />;
   }
+
+  const switcherTracks = customerFacingTracks();
 
   return (
     <div className="mx-auto grid w-full max-w-6xl gap-8 px-5 py-12 sm:py-16 lg:grid-cols-[0.85fr_1.15fr] lg:gap-10">
       <aside className="h-fit space-y-6">
-        <div
-          className="relative overflow-hidden rounded-[28px] border border-ink/10 shadow-[0_1px_0_rgba(255,255,255,0.6)_inset,0_18px_32px_-24px_rgba(36,28,22,0.5)]"
-        >
+        <div className="relative overflow-hidden rounded-[28px] border border-ink/10 shadow-[0_1px_0_rgba(255,255,255,0.6)_inset,0_18px_32px_-24px_rgba(36,28,22,0.5)]">
           <div className="relative aspect-[5/3]">
-            <ThemeArt track={track} instance="aside" />
+            <Image
+              src={tileSrc(track.slug)}
+              alt=""
+              fill
+              sizes="(min-width: 1024px) 22rem, 92vw"
+              className="object-cover object-[50%_30%]"
+            />
             <div
               aria-hidden="true"
               className="absolute inset-x-0 bottom-0 h-2/3"
@@ -72,12 +85,51 @@ export default async function CreatePage({
           </div>
         </div>
 
-        <ThemeSwitcher tracks={TRACKS} selectedSlug={track.slug} />
+        {switcherTracks.length > 1 ? (
+          <ThemeSwitcher tracks={switcherTracks} selectedSlug={track.slug} />
+        ) : null}
       </aside>
 
       <section className="paper-grain relative rounded-[28px] border border-rule bg-cream/85 p-6 shadow-[0_1px_0_rgba(255,255,255,0.6)_inset,0_18px_32px_-28px_rgba(36,28,22,0.4)] sm:p-8">
         <ChildDetailsForm track={track} />
       </section>
+    </div>
+  );
+}
+
+function ThemeComingSoon({ requestedName }: { requestedName: string | null }) {
+  const alphabet = launchTrack();
+
+  return (
+    <div className="mx-auto w-full max-w-xl px-5 py-16 sm:py-20">
+      <p className="text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-sage sm:text-xs">
+        Coming later
+      </p>
+      <h1 className="mt-3 text-[2.15rem] leading-[1.12] tracking-[-0.03em] text-ink sm:text-5xl">
+        {requestedName ? `${requestedName} is coming soon` : "That theme is coming soon"}
+      </h1>
+      <p className="mt-4 text-lg leading-relaxed text-ink-soft">
+        We&apos;re launching with the Alphabet book first. Other themes will
+        join the shelf in a later round.
+      </p>
+      {alphabet ? (
+        <div className="mt-8 overflow-hidden rounded-[24px] border border-ink/10">
+          <Image
+            src={tileSrc(alphabet.slug)}
+            alt=""
+            width={BRAND_IMAGE_SIZE.tile.width}
+            height={BRAND_IMAGE_SIZE.tile.height}
+            sizes="36rem"
+            className="aspect-[16/10] w-full object-cover object-[50%_28%]"
+          />
+        </div>
+      ) : null}
+      <Link
+        href={createHrefForLaunchTrack()}
+        className="mt-8 inline-flex items-center justify-center rounded-full bg-coral px-6 py-3 text-sm font-semibold text-white shadow-[0_1px_0_rgba(255,255,255,0.2)_inset,0_10px_20px_-8px_rgba(181,78,53,0.7)] transition hover:bg-coral-dark"
+      >
+        Personalize the Alphabet book
+      </Link>
     </div>
   );
 }

@@ -215,6 +215,22 @@ export const TRACKS: Track[] = [
   },
 ];
 
+/** The one theme this launch ships to customers. Other catalog entries stay in code for later rounds. */
+export const LAUNCH_TRACK_SLUG = "alphabet";
+
+export function isLaunchTrack(slug: string | undefined | null): boolean {
+  return slug === LAUNCH_TRACK_SLUG;
+}
+
+/** Themes shown on the homepage, /themes, and the create-page switcher. */
+export function customerFacingTracks(): Track[] {
+  return TRACKS.filter((track) => isLaunchTrack(track.slug));
+}
+
+export function launchTrack(): Track | undefined {
+  return getTrackBySlug(LAUNCH_TRACK_SLUG);
+}
+
 /** Look up a track by its slug. Returns undefined if the slug is unknown. */
 export function getTrackBySlug(slug: string | undefined | null): Track | undefined {
   if (!slug) return undefined;

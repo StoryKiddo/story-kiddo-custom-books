@@ -28,6 +28,7 @@ import {
 } from "@/lib/create-order-errors";
 import { MAX_CHILDREN_PER_BOOK } from "@/lib/orders";
 import { generateStoryPages, isAnthropicConfigured } from "@/lib/generate-story";
+import { isCoverVerificationError } from "@/lib/cover-prompt";
 import {
   illustrateBook,
   isOpenAIConfigured,
@@ -370,6 +371,11 @@ function scheduleStoryGeneration(
             continuity: story.continuity,
           });
         } catch (error) {
+          if (isCoverVerificationError(error)) {
+            console.error("Cover verification failed", error);
+            await admin.from("books").update({ status: "failed" }).eq("id", bookId);
+            return;
+          }
           console.error("Illustration generation failed, retrying once", error);
           illustrations = await illustrateBook({
             bookId,
