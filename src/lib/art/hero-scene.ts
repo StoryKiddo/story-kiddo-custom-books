@@ -64,8 +64,8 @@ export function giftMomentScene(): string {
   const width = 1600;
   const height = 1100;
 
-  const adultHair = `<path d="M1006 466c0-46 26-74 64-74s64 28 64 74c0 14-2 26-6 36 2-34-20-52-58-52s-60 18-58 52c-4-10-6-22-6-36z" fill="#4a3324"/><path d="M1000 486c-12 22-14 48-8 70 12 2 20-6 20-20 0-16-4-32-12-50z" fill="#4a3324"/>`;
-  const childHair = `<g fill="#2a1a12"><circle cx="836" cy="524" r="24"/><circle cx="872" cy="508" r="28"/><circle cx="908" cy="524" r="24"/><circle cx="824" cy="548" r="18"/><circle cx="920" cy="548" r="18"/></g>`;
+  const adultHair = `<path d="M762 566c0-46 26-74 64-74s64 28 64 74c0 14-2 26-6 36 2-34-20-52-58-52s-60 18-58 52c-4-10-6-22-6-36z" fill="#4a3324"/><path d="M756 586c-12 22-14 48-8 70 12 2 20-6 20-20 0-16-4-32-12-50z" fill="#4a3324"/>`;
+  const childHair = `<g fill="#2a1a12"><circle cx="620" cy="624" r="24"/><circle cx="656" cy="608" r="28"/><circle cx="692" cy="624" r="24"/><circle cx="608" cy="648" r="18"/><circle cx="704" cy="648" r="18"/></g>`;
 
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">` +
@@ -120,7 +120,7 @@ export function giftMomentScene(): string {
     `<rect width="${width}" height="${height}" fill="url(#lamplight)"/>` +
 
     // Potted plant.
-    `<g transform="translate(300 830)">` +
+    `<g transform="translate(150 838)">` +
     `<path d="M-52 0h104l-14 120h-76z" fill="#c07a55"/>` +
     `<path d="M-52 0h104l-4 30h-96z" fill="${WARM.ink}" opacity="0.12"/>` +
     `<g fill="${WARM.leaf}">` +
@@ -131,38 +131,42 @@ export function giftMomentScene(): string {
     `</g>` +
 
     // Rug.
-    `<ellipse cx="900" cy="990" rx="620" ry="112" fill="${WARM.rug}"/>` +
-    `<ellipse cx="900" cy="990" rx="560" ry="92" fill="none" stroke="${WARM.cream}" stroke-width="10" opacity="0.5"/>` +
-    `<ellipse cx="900" cy="990" rx="470" ry="72" fill="${WARM.rugDeep}" opacity="0.35"/>` +
+    `<ellipse cx="690" cy="990" rx="600" ry="112" fill="${WARM.rug}"/>` +
+    `<ellipse cx="690" cy="990" rx="540" ry="92" fill="none" stroke="${WARM.cream}" stroke-width="10" opacity="0.5"/>` +
+    `<ellipse cx="690" cy="990" rx="450" ry="72" fill="${WARM.rugDeep}" opacity="0.35"/>` +
 
-    // Sofa.
+    // Sofa back, with the pair sitting in front of it.
+    `<path d="M330 906V744c0-50 36-86 86-86h520c50 0 86 36 86 86v162z" fill="${WARM.sofa}"/>` +
+    `<path d="M330 906V744c0-50 36-86 86-86h70c-32 22-48 54-48 96v152z" fill="#ffffff" opacity="0.12"/>` +
+    `<path d="M404 700c26-14 52-8 60 14 8 20-6 42-30 46-26 4-46-10-48-32-2-14 6-22 18-28z" fill="#e3b07d"/>` +
+
+    // The grown-up, an arm around the child.
     `<g>` +
-    `<path d="M600 900v-190c0-54 38-92 92-92h420c54 0 92 38 92 92v190z" fill="${WARM.sofa}"/>` +
-    `<path d="M600 900v-190c0-54 38-92 92-92h60c-30 26-44 58-44 96v186z" fill="#ffffff" opacity="0.12"/>` +
-    `<rect x="560" y="760" width="90" height="180" rx="34" fill="${WARM.sofaDeep}"/>` +
-    `<rect x="1150" y="760" width="90" height="180" rx="34" fill="${WARM.sofaDeep}"/>` +
-    `<rect x="620" y="840" width="560" height="96" rx="34" fill="${WARM.sofaDeep}"/>` +
-    `<path d="M1086 742c26-16 52-10 60 14 8 22-6 44-30 48-26 4-46-10-48-32-2-16 6-24 18-30z" fill="#e3b07d"/>` +
+    `<path d="M760 880V760c0-46 30-76 66-76s64 30 64 76v120z" fill="#6f7f94"/>` +
+    `<path d="M768 782c-48 6-84 26-104 54" stroke="#6f7f94" stroke-width="38" stroke-linecap="round" fill="none"/>` +
+    `<circle cx="664" cy="838" r="20" fill="#eec19c"/>` +
+    `<path d="M884 782c22 10 36 28 42 52" stroke="#6f7f94" stroke-width="38" stroke-linecap="round" fill="none"/>` +
+    `<path d="M796 706c10 16 18 24 30 24s20-8 30-24z" fill="#eec19c"/>` +
+    head(826, 606, 62, "#eec19c", "#4a3324", adultHair, 5) +
     `</g>` +
 
-    // The grown-up, arm around the child.
+    // The child, the book open on their lap.
     `<g>` +
-    `<path d="M1000 900v-150c0-56 32-92 74-92s72 36 72 92v150z" fill="#6f7f94"/>` +
-    `<path d="M1000 806c-56 6-96 30-120 62" stroke="#6f7f94" stroke-width="42" stroke-linecap="round" fill="none"/>` +
-    head(1070, 500, 62, "#eec19c", "#4a3324", adultHair, 5) +
-    `<path d="M1010 560c18 24 40 36 64 36s46-12 62-34c14 10 24 26 28 44h-182c4-18 14-36 28-46z" fill="#6f7f94"/>` +
+    `<path d="M582 884V786c0-42 32-70 74-70s74 28 74 70v98z" fill="#d9654a"/>` +
+    `<path d="M592 800c-24 10-40 26-48 48M720 800c24 10 40 26 48 48" stroke="#eec19c" stroke-width="30" stroke-linecap="round" fill="none"/>` +
+    `<path d="M632 728c8 14 15 20 24 20s17-6 24-20z" fill="#8a5a3b"/>` +
+    head(656, 660, 54, "#8a5a3b", "#2a1a12", childHair, 5) +
     `</g>` +
 
-    // The child, holding the book open on their lap.
-    `<g>` +
-    `<path d="M790 900v-120c0-48 36-80 82-80s82 32 82 80v120z" fill="#d9654a"/>` +
-    `<path d="M790 812c-28 10-46 28-54 52M954 812c28 10 46 28 54 52" stroke="#eec19c" stroke-width="34" stroke-linecap="round" fill="none"/>` +
-    head(872, 560, 54, "#8a5a3b", "#2a1a12", childHair, 5) +
-    `</g>` +
-    openBook(886, 860, 1.25) +
+    // Seat and arms in front, so they really are sitting in it.
+    `<rect x="356" y="852" width="574" height="96" rx="34" fill="${WARM.sofaDeep}"/>` +
+    `<rect x="296" y="772" width="92" height="180" rx="34" fill="${WARM.sofaDeep}"/>` +
+    `<rect x="898" y="772" width="92" height="180" rx="34" fill="${WARM.sofaDeep}"/>` +
+    `<path d="M296 772h92v28h-92zM898 772h92v28h-92z" fill="#ffffff" opacity="0.12"/>` +
+    openBook(666, 872, 1.2) +
 
     // A wrapped gift, ribbon still on it.
-    `<g transform="translate(430 960)">` +
+    `<g transform="translate(220 966)">` +
     `<rect x="-90" y="-96" width="180" height="96" rx="10" fill="${WARM.cream}"/>` +
     `<rect x="-90" y="-96" width="180" height="96" rx="10" fill="${WARM.sofa}" opacity="0.2"/>` +
     `<rect x="-14" y="-96" width="28" height="96" fill="#d9654a" opacity="0.9"/>` +
@@ -171,7 +175,7 @@ export function giftMomentScene(): string {
     `</g>` +
 
     // The dog, asleep through all of it.
-    `<g transform="translate(1290 950)">` +
+    `<g transform="translate(1076 972)">` +
     `<ellipse cx="0" cy="10" rx="110" ry="20" fill="${WARM.ink}" opacity="0.14"/>` +
     `<path d="M-96 0c-10-44 18-74 66-74 44 0 74 26 70 74z" fill="#e0b98c"/>` +
     `<circle cx="-84" cy="-34" r="34" fill="#e0b98c"/>` +

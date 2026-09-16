@@ -87,7 +87,7 @@ const CHILD_LOOKS: Record<string, ChildLook> = {
   emotions: { skin: "#f0c9a8", hair: "#c2703a", top: "#e4a0b2", bottom: "#64486a", hairStyle: "bob" },
   "kindness-values": { skin: "#6f4529", hair: "#241812", top: "#f4efe4", bottom: "#3f7a52", hairStyle: "braids" },
   "life-milestones": { skin: "#edc39c", hair: "#5a3a22", top: "#d2643c", bottom: "#4a5f7a", hairStyle: "short" },
-  "animals-nature": { skin: "#c98f63", hair: "#33241a", top: "#6d9a54", bottom: "#4a4032", hairStyle: "curls" },
+  "animals-nature": { skin: "#c98f63", hair: "#33241a", top: "#6d9a54", bottom: "#a2854f", hairStyle: "curls" },
   manners: { skin: "#f4d5b6", hair: "#d9a441", top: "#7795c4", bottom: "#41506b", hairStyle: "ponytail" },
 };
 
@@ -428,54 +428,61 @@ function milestonesScene(art: TrackArt, layout: Layout): string {
         `<rect x="76" y="-132" width="62" height="54" rx="10" fill="${art.accent}" opacity="0.9"/>` +
         `<path d="M-136-105h62M76-105h62" stroke="#fff6ea" stroke-width="6" opacity="0.7"/>`,
     ) +
-    stepStone(centerX - 450, ground + 130, 92) +
-    stepStone(centerX - 300, ground + 92, 78) +
-    stepStone(centerX - 160, ground + 56, 66) +
-    child(centerX - 190, ground + 44, h, look("life-milestones"), {
+    stepStone(centerX - 450, ground + 96, 92) +
+    stepStone(centerX - 320, ground + 66, 78) +
+    stepStone(centerX - 190, ground + 40, 66) +
+    child(centerX - 200, ground + 18, h, look("life-milestones"), {
       behind: `<g transform="translate(-92 -184)"><rect x="-40" y="-34" width="80" height="92" rx="22" fill="${art.accent}"/><path d="M-24-34c0-18 10-28 24-28s24 10 24 28" fill="none" stroke="${shade(
         art.accent,
         0.4,
       )}" stroke-width="8"/><rect x="-28" y="6" width="56" height="28" rx="10" fill="#fff6ea" opacity="0.85"/></g>`,
     }) +
-    companion("turtle", centerX - 10, ground + 26, 130, art)
+    companion("turtle", centerX - 10, ground + 20, 130, art)
   );
 }
 
 function natureScene(art: TrackArt, layout: Layout): string {
-  const { centerX, ground, childHeight: h, width, height } = layout;
+  const { centerX, ground, childHeight: h, width } = layout;
   const butterfly = (x: number, y: number, scale: number, color: string) =>
     at(
       x,
       y,
       scale,
-      `<path d="M0 0c-16-22-40-26-47-12s12 30 47 12zM0 0c16-22 40-26 47-12s-12 30-47 12z" fill="${color}"/>` +
-        `<path d="M0-10v22" stroke="${art.deep}" stroke-width="5" stroke-linecap="round" opacity="0.6"/>`,
+      `<g transform="rotate(-12)">` +
+        `<ellipse cx="-22" cy="-13" rx="24" ry="18" transform="rotate(-24 -22 -13)" fill="${color}"/>` +
+        `<ellipse cx="22" cy="-13" rx="24" ry="18" transform="rotate(24 22 -13)" fill="${color}"/>` +
+        `<ellipse cx="-17" cy="14" rx="17" ry="13" transform="rotate(20 -17 14)" fill="${shade(color, 0.18)}"/>` +
+        `<ellipse cx="17" cy="14" rx="17" ry="13" transform="rotate(-20 17 14)" fill="${shade(color, 0.18)}"/>` +
+        `<rect x="-3" y="-19" width="6" height="38" rx="3" fill="${art.deep}" opacity="0.7"/>` +
+        `<path d="M-2-19c-6-8-14-12-20-11M2-19c6-8 14-12 20-11" stroke="${art.deep}" stroke-width="3" fill="none" opacity="0.55" stroke-linecap="round"/>` +
+        `</g>`,
     );
+  // The stream sits in the middle distance so the children stand on dry meadow.
+  const streamY = ground - 128;
   return (
     pine(centerX - 500, ground - 30, 380, art) +
     pine(centerX - 350, ground - 60, 280, art) +
     pine(centerX + 500, ground - 34, 330, art) +
     tree(centerX + 320, ground - 30, 290, art, 2) +
-    // A stream cutting across the meadow.
-    `<path d="M0 ${n(height - 118)}c${n(width * 0.3)} ${n(-66)} ${n(width * 0.46)} ${n(44)} ${n(
+    `<path d="M0 ${n(streamY)}c${n(width * 0.3)} ${n(-38)} ${n(width * 0.46)} ${n(30)} ${n(
       width,
-    )} ${n(-34)}" stroke="#bfe0ea" stroke-width="56" fill="none" opacity="0.8" stroke-linecap="round"/>` +
-    `<path d="M0 ${n(height - 126)}c${n(width * 0.3)} ${n(-66)} ${n(width * 0.46)} ${n(44)} ${n(
+    )} ${n(-18)}" stroke="#bfe0ea" stroke-width="44" fill="none" opacity="0.8" stroke-linecap="round"/>` +
+    `<path d="M0 ${n(streamY - 7)}c${n(width * 0.3)} ${n(-38)} ${n(width * 0.46)} ${n(30)} ${n(
       width,
-    )} ${n(-34)}" stroke="#ffffff" stroke-width="12" fill="none" opacity="0.45"/>` +
+    )} ${n(-18)}" stroke="#ffffff" stroke-width="10" fill="none" opacity="0.45"/>` +
     child(centerX - 60, ground, h, look("animals-nature"), {
-      holding: `<g transform="translate(0 -250)"><rect x="-54" y="-20" width="46" height="42" rx="12" fill="${shade(
+      holding: `<g transform="translate(96 -104) rotate(18)"><circle r="42" fill="#cfe6ee" opacity="0.85"/><circle r="42" fill="none" stroke="${shade(
+        art.prop,
+        0.2,
+      )}" stroke-width="12"/><path d="M-16-18a30 30 0 0 1 22-14" stroke="#ffffff" stroke-width="8" fill="none" stroke-linecap="round" opacity="0.8"/><rect x="-9" y="40" width="18" height="52" rx="9" fill="${shade(
         art.deep,
         0.1,
-      )}"/><rect x="8" y="-20" width="46" height="42" rx="12" fill="${shade(art.deep, 0.1)}"/><rect x="-10" y="-10" width="20" height="16" fill="${shade(
-        art.deep,
-        0.1,
-      )}"/><circle cx="-31" cy="1" r="11" fill="${art.warm}" opacity="0.85"/><circle cx="31" cy="1" r="11" fill="${art.warm}" opacity="0.85"/></g>`,
+      )}"/></g>`,
     }) +
     companion("fox", centerX + 150, ground + 6, 165, art) +
-    companion("owl", centerX - 330, ground - 210, 130, art) +
-    butterfly(centerX + 280, ground - 300, 1.2, art.accent) +
-    butterfly(centerX - 190, ground - 360, 0.85, art.prop) +
+    companion("owl", centerX - 320, ground + 2, 130, art) +
+    butterfly(centerX + 300, ground - 320, 1.1, art.accent) +
+    butterfly(centerX - 200, ground - 380, 0.8, art.prop) +
     // Mushrooms in the foreground.
     at(
       centerX + 430,

@@ -279,29 +279,40 @@ export function child(
   const s = height / 304;
   const { skin, hair, top, bottom, hairStyle = "short" } = look;
   const shoe = "#3b2b20";
-  const sleeve = shade(top, 0.14);
+  const sleeve = shade(top, 0.08);
 
+  // Arms hang from the shoulder seam so the sleeve caps them where the torso
+  // narrows, rather than floating beside it.
+  const limb = (d: string) =>
+    `<path d="${d}" fill="none" stroke="${skin}" stroke-width="21" stroke-linecap="round"/>`;
+  const cuff = (d: string) =>
+    `<path d="${d}" fill="none" stroke="${sleeve}" stroke-width="27" stroke-linecap="round"/>`;
+  const hand = (cx: number, cy: number) =>
+    `<circle cx="${n(cx)}" cy="${n(cy)}" r="15" fill="${skin}"/>`;
+
+  const restLeft = limb("M-36-178C-56-164-70-146-72-118") + hand(-72, -114);
+  const restRight = limb("M36-178C56-164 70-146 72-118") + hand(72, -114);
   const arms = options.wave
-    ? `<path d="M-52-186c-18 12-26 34-26 60" stroke="${skin}" stroke-width="22" stroke-linecap="round" fill="none"/>` +
-      `<circle cx="-78" cy="-122" r="16" fill="${skin}"/>` +
-      `<path d="M52-186c22 2 34-20 36-50" stroke="${skin}" stroke-width="22" stroke-linecap="round" fill="none"/>` +
-      `<circle cx="88" cy="-240" r="17" fill="${skin}"/>`
-    : `<path d="M-52-186c-16 16-24 38-24 62" stroke="${skin}" stroke-width="22" stroke-linecap="round" fill="none"/>` +
-      `<circle cx="-76" cy="-120" r="16" fill="${skin}"/>` +
-      `<path d="M52-186c16 16 24 38 24 62" stroke="${skin}" stroke-width="22" stroke-linecap="round" fill="none"/>` +
-      `<circle cx="76" cy="-120" r="16" fill="${skin}"/>`;
+    ? restLeft + limb("M36-178C58-188 74-208 78-236") + hand(80, -240)
+    : restLeft + restRight;
+  const cuffs = options.wave
+    ? cuff("M-34-180C-44-173-51-165-53-157") + cuff("M34-180C44-184 51-190 55-196")
+    : cuff("M-34-180C-44-173-51-165-53-157") + cuff("M34-180C44-173 51-165 53-157");
 
   const body =
-    `<ellipse cx="0" cy="4" rx="76" ry="15" fill="#000000" opacity="0.15"/>` +
+    `<ellipse cx="0" cy="4" rx="64" ry="13" fill="#000000" opacity="0.15"/>` +
     (options.behind ?? "") +
     // legs and shoes
-    `<path d="M-32-104h26v88h-26zM6-104h26v88H6z" fill="${bottom}"/>` +
-    `<path d="M-38-18h32c5 0 8 4 8 10v8h-48v-8c0-6 3-10 8-10zM6-18h32c5 0 8 4 8 10v8H-2v-8c0-6 3-10 8-10z" fill="${shoe}"/>` +
+    `<path d="M-30-108h24v90h-24zM6-108h24v90H6z" fill="${bottom}"/>` +
+    `<rect x="-40" y="-20" width="36" height="20" rx="9" fill="${shoe}"/>` +
+    `<rect x="4" y="-20" width="36" height="20" rx="9" fill="${shoe}"/>` +
+    `<rect x="-40" y="-8" width="36" height="8" rx="4" fill="#ffffff" opacity="0.22"/>` +
+    `<rect x="4" y="-8" width="36" height="8" rx="4" fill="#ffffff" opacity="0.22"/>` +
     // torso
     `<path d="M-46-104c-10-46-4-90 46-90s56 44 46 90z" fill="${top}"/>` +
     `<path d="M-46-104c-10-46-4-90 46-90 7 0 13 1 18 3-30 12-42 48-40 87z" fill="#ffffff" opacity="0.16"/>` +
     arms +
-    `<path d="M-56-184c-10 8-14 20-12 34 12 4 22-2 28-14zM56-184c10 8 14 20 12 34-12 4-22-2-28-14z" fill="${sleeve}"/>` +
+    cuffs +
     `<path d="M-30-192c8 12 18 18 30 18s22-6 30-18" fill="none" stroke="${sleeve}" stroke-width="6" opacity="0.6"/>` +
     // neck and head
     `<path d="M-15-200c3 10 8 14 15 14s12-4 15-14z" fill="${shade(skin, 0.12)}"/>` +
