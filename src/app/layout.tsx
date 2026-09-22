@@ -1,16 +1,23 @@
 import type { Metadata } from "next";
-import { Fraunces, Nunito } from "next/font/google";
+import { Fraunces, Nunito_Sans } from "next/font/google";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import "./globals.css";
 
+/**
+ * The whole site runs on two faces. Fraunces with its SOFT and WONK axes
+ * turned up is the storybook display serif — the same cut that gets baked into
+ * the generated cover art in `scripts/generate-art.mjs`, so headings on the
+ * page and lettering inside the pictures are the same typeface.
+ */
 const display = Fraunces({
   variable: "--font-fraunces",
   subsets: ["latin"],
+  axes: ["SOFT", "WONK"],
   display: "swap",
 });
 
-const sans = Nunito({
+const sans = Nunito_Sans({
   variable: "--font-nunito",
   subsets: ["latin"],
   display: "swap",

@@ -29,6 +29,8 @@ export const CREATE_ORDER_MESSAGES = {
   timeout: "That took a bit too long. Please check your connection and try again.",
   payloadTooLarge: `Those photos together are a bit large — please use photos under ${MAX_PHOTO_MB}MB each, or try cropping them smaller.`,
   themeMissing: "Please choose an educational theme before continuing.",
+  themeNotLaunching:
+    "We're launching with the Alphabet book first. That theme isn't available yet.",
   themeNotInDb: "We couldn't find that theme. Please pick a theme again from the list.",
   nameInvalid: "Please enter each child's first name (up to 40 characters).",
   ageInvalid: "Please enter an age between 0 and 12 for each child.",

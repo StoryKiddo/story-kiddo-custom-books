@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { personalizedBookCopy } from "./book-title.ts";
+import {
+  DEFAULT_DEDICATION_GIVER,
+  coverByline,
+  coverLockup,
+  dedicationLine,
+  personalizedBookCopy,
+} from "./book-title.ts";
 import { TRACKS, getTrackBySlug } from "./tracks.ts";
 
 function kids(...names: string[]) {
@@ -14,80 +20,138 @@ function wordCount(title: string): number {
 const alphabet = getTrackBySlug("alphabet")!;
 
 describe("personalizedBookCopy alphabet rules", () => {
-  it("uses one child's name in a three-word title", () => {
+  it("names one child in the published picture-book form", () => {
     const copy = personalizedBookCopy(kids("Dylan"), alphabet);
-    assert.equal(copy.title, "Dylan's Alphabet Adventure");
+    assert.equal(copy.title, "Dylan and the Great Alphabet Quest");
     assert.equal(copy.subtitle, null);
-    assert.equal(wordCount(copy.title), 3);
   });
 
-  it("joins two children with an ampersand and possessive on the final name", () => {
+  it("joins two children with an ampersand ahead of the connector", () => {
     const copy = personalizedBookCopy(kids("Dylan", "Mia"), alphabet);
-    assert.equal(copy.title, "Dylan & Mia's Alphabet Adventure");
+    assert.equal(copy.title, "Dylan & Mia and the Great Alphabet Quest");
     assert.equal(copy.subtitle, null);
-    assert.equal(wordCount(copy.title), 5);
   });
 
-  it("uses Our Alphabet Adventure for three children and names every child in the subtitle", () => {
+  it("drops to the theme title for three children and names every child in the subtitle", () => {
     const copy = personalizedBookCopy(kids("Dylan", "Mia", "Leo"), alphabet);
-    assert.equal(copy.title, "Our Alphabet Adventure");
+    assert.equal(copy.title, "The Great Alphabet Quest");
     assert.equal(copy.subtitle, "Starring Dylan, Mia & Leo");
-    assert.ok(copy.subtitle?.includes("Dylan"));
-    assert.ok(copy.subtitle?.includes("Mia"));
-    assert.ok(copy.subtitle?.includes("Leo"));
   });
 
   it("names all four children in the subtitle", () => {
-    const copy = personalizedBookCopy(
-      kids("Dylan", "Mia", "Leo", "Ava"),
-      alphabet,
-    );
-    assert.equal(copy.title, "Our Alphabet Adventure");
+    const copy = personalizedBookCopy(kids("Dylan", "Mia", "Leo", "Ava"), alphabet);
+    assert.equal(copy.title, "The Great Alphabet Quest");
     assert.equal(copy.subtitle, "Starring Dylan, Mia, Leo & Ava");
-    for (const name of ["Dylan", "Mia", "Leo", "Ava"]) {
-      assert.ok(copy.subtitle?.includes(name), `missing ${name}`);
-    }
   });
 
   it("preserves form order for two children", () => {
     const copy = personalizedBookCopy(kids("Mia", "Dylan"), alphabet);
-    assert.equal(copy.title, "Mia & Dylan's Alphabet Adventure");
+    assert.equal(copy.title, "Mia & Dylan and the Great Alphabet Quest");
     assert.equal(copy.title.startsWith("Dylan"), false);
   });
 
   it("preserves form order for three or more children in the subtitle", () => {
     const copy = personalizedBookCopy(kids("Ava", "Leo", "Mia", "Dylan"), alphabet);
-    assert.equal(copy.title, "Our Alphabet Adventure");
     assert.equal(copy.subtitle, "Starring Ava, Leo, Mia & Dylan");
   });
 
   it("trims names before formatting and does not rewrite them", () => {
     const copy = personalizedBookCopy(kids("  Dylan  "), alphabet);
-    assert.equal(copy.title, "Dylan's Alphabet Adventure");
+    assert.equal(copy.title, "Dylan and the Great Alphabet Quest");
   });
 
-  it("uses only the first word of a two-word name in a one-child title", () => {
+  it("uses only the first word of a two-word name in the title", () => {
     const copy = personalizedBookCopy(kids("  Mary Jane  "), alphabet);
-    assert.equal(copy.title, "Mary's Alphabet Adventure");
-    assert.equal(wordCount(copy.title), 3);
-  });
-
-  it("keeps a two-child title at five words when both names have two words", () => {
-    const copy = personalizedBookCopy(
-      kids("Mary Jane", "John Paul"),
-      alphabet,
-    );
-    assert.equal(copy.title, "Mary & John's Alphabet Adventure");
-    assert.equal(wordCount(copy.title), 5);
+    assert.equal(copy.title, "Mary and the Great Alphabet Quest");
   });
 
   it("keeps full trimmed names in the subtitle for three or more children", () => {
-    const copy = personalizedBookCopy(
-      kids("  Mary Jane  ", "John Paul", "Ava Rose"),
-      alphabet,
-    );
-    assert.equal(copy.title, "Our Alphabet Adventure");
+    const copy = personalizedBookCopy(kids("  Mary Jane  ", "John Paul", "Ava Rose"), alphabet);
+    assert.equal(copy.title, "The Great Alphabet Quest");
     assert.equal(copy.subtitle, "Starring Mary Jane, John Paul & Ava Rose");
+  });
+
+  it("falls back to the theme title when no name is usable", () => {
+    assert.equal(personalizedBookCopy([], alphabet).title, "The Great Alphabet Quest");
+    assert.equal(personalizedBookCopy(kids("   "), alphabet).title, "The Great Alphabet Quest");
+  });
+});
+
+describe("coverLockup", () => {
+  it("splits a title into the three lines the cover is lettered in", () => {
+    assert.deepEqual(coverLockup("Mia and the Great Alphabet Quest"), {
+      lead: "Mia",
+      connector: "and the",
+      rest: "Great Alphabet Quest",
+    });
+  });
+
+  it("keeps both names on the lead line for a shared book", () => {
+    assert.deepEqual(coverLockup("Mia & Theo and the Counting Carnival"), {
+      lead: "Mia & Theo",
+      connector: "and the",
+      rest: "Counting Carnival",
+    });
+  });
+
+  it("sets a title with no connector as one line", () => {
+    assert.deepEqual(coverLockup("The Wild Woodland Wander"), {
+      lead: null,
+      connector: null,
+      rest: "The Wild Woodland Wander",
+    });
+  });
+
+  it("normalizes stray whitespace", () => {
+    assert.deepEqual(coverLockup("  Mia   and the   Counting Carnival  "), {
+      lead: "Mia",
+      connector: "and the",
+      rest: "Counting Carnival",
+    });
+  });
+
+  it("splits on the first connector only", () => {
+    const lockup = coverLockup("Mia and the Cat and the Hat");
+    assert.equal(lockup.lead, "Mia");
+    assert.equal(lockup.rest, "Cat and the Hat");
+  });
+});
+
+describe("dedicationLine", () => {
+  it("prefixes a giver with From", () => {
+    assert.equal(dedicationLine("Grandma"), "From Grandma");
+    assert.equal(dedicationLine("  Mom and Dad  "), "From Mom and Dad");
+  });
+
+  it("does not double the prefix", () => {
+    assert.equal(dedicationLine("From Santa"), "From Santa");
+    assert.equal(dedicationLine("from santa"), "from santa");
+  });
+
+  it("falls back to a neutral giver", () => {
+    assert.equal(dedicationLine(""), `From ${DEFAULT_DEDICATION_GIVER}`);
+    assert.equal(dedicationLine(null), `From ${DEFAULT_DEDICATION_GIVER}`);
+    assert.equal(dedicationLine(undefined), `From ${DEFAULT_DEDICATION_GIVER}`);
+  });
+});
+
+describe("coverByline", () => {
+  it("prints one child's name and age", () => {
+    assert.equal(coverByline(kids("Dylan")), "Starring Dylan, age 4");
+  });
+
+  it("joins two children without ages", () => {
+    assert.equal(coverByline(kids("Dylan", "Mia")), "Starring Dylan & Mia");
+  });
+
+  it("stays off the cover when the subtitle already names everyone", () => {
+    assert.equal(coverByline(kids("Dylan", "Mia", "Leo")), null);
+    assert.equal(coverByline(kids("Dylan", "Mia", "Leo", "Ava")), null);
+  });
+
+  it("trims whitespace and ignores empty names", () => {
+    assert.equal(coverByline(kids("  Dylan  ")), "Starring Dylan, age 4");
+    assert.equal(coverByline([]), null);
   });
 });
 
@@ -115,14 +179,26 @@ describe("personalizedBookCopy every track", () => {
     );
   });
 
-  it("keeps every title at most five whitespace-separated words", () => {
+  it("gives every track its own title phrase", () => {
+    const phrases = TRACKS.map((track) => coverLockup(personalizedBookCopy(kids("Dylan"), track).title).rest);
+    assert.equal(new Set(phrases).size, TRACKS.length);
+  });
+
+  it("keeps the lettered lines short enough to set on a cover", () => {
     for (const track of TRACKS) {
       for (const children of groups) {
         const { title } = personalizedBookCopy(children, track);
+        const lockup = coverLockup(title);
         assert.ok(
-          wordCount(title) <= 5,
-          `${track.slug} with ${children.length} children: "${title}"`,
+          wordCount(lockup.rest) <= 4,
+          `${track.slug} with ${children.length} children: "${lockup.rest}"`,
         );
+        if (lockup.lead) {
+          assert.ok(
+            wordCount(lockup.lead) <= 3,
+            `${track.slug} with ${children.length} children: "${lockup.lead}"`,
+          );
+        }
       }
     }
   });
@@ -142,49 +218,10 @@ describe("personalizedBookCopy every track", () => {
     }
   });
 
-  it("uses the track name in the title for single-word tracks", () => {
-    assert.equal(
-      personalizedBookCopy(kids("Dylan"), getTrackBySlug("numbers")!).title,
-      "Dylan's Numbers Adventure",
-    );
-    assert.equal(
-      personalizedBookCopy(kids("Dylan"), getTrackBySlug("emotions")!).title,
-      "Dylan's Emotions Adventure",
-    );
-    assert.equal(
-      personalizedBookCopy(kids("Dylan"), getTrackBySlug("manners")!).title,
-      "Dylan's Manners Adventure",
-    );
-  });
-
-  it("uses a short label for multi-word tracks so two-child titles stay within five words", () => {
-    assert.equal(
-      personalizedBookCopy(
-        kids("Dylan", "Mia"),
-        getTrackBySlug("colors-shapes")!,
-      ).title,
-      "Dylan & Mia's Colors Adventure",
-    );
-    assert.equal(
-      personalizedBookCopy(
-        kids("Dylan", "Mia"),
-        getTrackBySlug("kindness-values")!,
-      ).title,
-      "Dylan & Mia's Kindness Adventure",
-    );
-    assert.equal(
-      personalizedBookCopy(
-        kids("Dylan", "Mia"),
-        getTrackBySlug("life-milestones")!,
-      ).title,
-      "Dylan & Mia's Milestones Adventure",
-    );
-    assert.equal(
-      personalizedBookCopy(
-        kids("Dylan", "Mia"),
-        getTrackBySlug("animals-nature")!,
-      ).title,
-      "Dylan & Mia's Animals Adventure",
-    );
+  it("names the child first on every single-child title", () => {
+    for (const track of TRACKS) {
+      const { title } = personalizedBookCopy(kids("Dylan"), track);
+      assert.ok(title.startsWith("Dylan and the "), `${track.slug}: "${title}"`);
+    }
   });
 });

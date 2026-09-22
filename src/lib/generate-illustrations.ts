@@ -22,6 +22,18 @@ import {
   stampCustomerPreview,
 } from "@/lib/illustration-watermark";
 import type { BookContinuity, PagePlanItem } from "@/lib/story-blueprint";
+import { coverLockup, dedicationLine, personalizedBookCopy } from "@/lib/book-title";
+import {
+  COVER_PROOF_MODEL,
+  CoverVerificationError,
+  buildCoverPrompt,
+  buildCoverRequestFields,
+  coverObjectPath,
+  coverProofIssues,
+  decideCoverAttempt,
+  repaintNote,
+  shouldSaveGeneratedCover,
+} from "@/lib/cover-prompt";
 
 const ILLUSTRATION_BUCKET = "book-illustrations";
 const PHOTO_BUCKET = "child-photos";
@@ -115,6 +127,10 @@ export async function generatePageIllustration(options: {
     throw new Error(described.message);
   }
 
+  return imageFromResult(result);
+}
+
+async function imageFromResult(result: { data?: { b64_json?: string; url?: string }[] }): Promise<Buffer> {
   const item = result.data?.[0];
   if (item?.b64_json) {
     return Buffer.from(item.b64_json, "base64");
@@ -122,12 +138,107 @@ export async function generatePageIllustration(options: {
   if (item?.url) {
     const response = await fetch(item.url);
     if (!response.ok) {
-      throw new Error("Could not download the generated illustration.");
+      throw new Error("Could not download the generated image.");
     }
     return Buffer.from(await response.arrayBuffer());
   }
-
   throw new Error("The image model returned no image data.");
+}
+
+/**
+ * Reads the text an image model painted onto a cover. Returns null when the
+ * read-back itself fails — callers treat that as a failed verification.
+ */
+async function readCoverText(client: OpenAI, png: Buffer): Promise<string | null> {
+  try {
+    const completion = await client.chat.completions.create({
+      model: COVER_PROOF_MODEL,
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: "Transcribe the title lettering, each child's name, and the dedication banner in this book cover, exactly as spelled, one line per line of text. Ignore letters that are objects in the scene, such as wooden alphabet blocks. If you cannot read the cover, reply NONE.",
+            },
+            {
+              type: "image_url",
+              image_url: { url: `data:image/png;base64,${png.toString("base64")}` },
+            },
+          ],
+        },
+      ],
+    });
+    return completion.choices?.[0]?.message?.content?.trim() ?? null;
+  } catch (error) {
+    console.error("Cover proofing could not run", error);
+    return null;
+  }
+}
+
+/**
+ * Paints the cover with the title lettered into the artwork, then proofreads
+ * the lettering and repaints if it is wrong. Never returns an unverified cover.
+ */
+export async function generateCoverArt(options: {
+  track: Track;
+  children: IllustrationChild[];
+  referenceImages: File[];
+  title: string;
+  dedication: string;
+}): Promise<{ png: Buffer; attempts: number; issues: string[] }> {
+  const apiKey = getOpenAIApiKey();
+  if (!apiKey) {
+    throw new Error("OPENAI_API_KEY is not configured.");
+  }
+
+  const client = new OpenAI({ apiKey });
+  const lockup = coverLockup(options.title);
+  const basePrompt = buildCoverPrompt({
+    track: options.track,
+    children: options.children,
+    lockup,
+    dedication: options.dedication,
+  });
+  const childNames = options.children.map((child) => child.name);
+
+  let issues: string[] = [];
+
+  for (let attempt = 1; ; attempt++) {
+    const prompt = attempt === 1 ? basePrompt : `${basePrompt}${repaintNote(issues)}`;
+    let result;
+    try {
+      result = await client.images.edit({
+        ...buildCoverRequestFields(prompt),
+        image: options.referenceImages,
+      });
+    } catch (error) {
+      const described = describeIllustrationApiError(error);
+      if (described.isAccessError) {
+        console.error(described.message);
+      }
+      throw new Error(described.message);
+    }
+
+    const png = await imageFromResult(result);
+    const readText = await readCoverText(client, png);
+    issues = coverProofIssues({
+      readText,
+      childNames,
+      lockup,
+      dedication: options.dedication,
+    });
+    const decision = decideCoverAttempt(attempt, issues);
+
+    if (shouldSaveGeneratedCover(decision)) {
+      return { png, attempts: attempt, issues: [] };
+    }
+
+    console.warn(`Cover attempt ${attempt} failed proofing: ${issues.join(" ")}`);
+    if (decision === "reject") {
+      throw new CoverVerificationError(issues);
+    }
+  }
 }
 
 export async function illustrateBook(options: {
@@ -135,6 +246,7 @@ export async function illustrateBook(options: {
   track: Track;
   pages: string[];
   children: IllustrationChild[];
+  dedication?: string | null;
   pagePlan?: PagePlanItem[];
   continuity?: BookContinuity | null;
 }): Promise<(string | null)[]> {
@@ -145,6 +257,40 @@ export async function illustrateBook(options: {
 
   const references = await downloadReferencePhotos(options.children);
   const referenceImages = references.map((entry) => entry.file);
+
+  // The cover comes first. An unverified cover is never uploaded or saved, and
+  // the order does not continue as if lettering succeeded.
+  const { title } = personalizedBookCopy(options.children, options.track);
+  const cover = await generateCoverArt({
+    track: options.track,
+    children: options.children,
+    referenceImages,
+    title,
+    dedication: dedicationLine(options.dedication),
+  });
+
+  const coverPath = coverObjectPath(options.bookId);
+  const { error: coverUploadError } = await supabase.storage
+    .from(ILLUSTRATION_BUCKET)
+    .upload(coverPath, cover.png, {
+      contentType: "image/png",
+      cacheControl: "3600",
+      upsert: true,
+    });
+  if (coverUploadError) {
+    throw coverUploadError;
+  }
+
+  const { error: coverSaveError } = await supabase
+    .from("books")
+    .update({ cover_path: coverPath })
+    .eq("id", options.bookId);
+  if (coverSaveError) {
+    // The cover migration may not have run yet. The verified file is still in
+    // storage; do not treat a missing column as a successful unverified cover.
+    console.error("Failed to save the cover path", coverSaveError);
+  }
+
   const illustrations: (string | null)[] = options.pages.map(() => null);
   const previewCount = previewIllustrationCount(options.pages.length);
 

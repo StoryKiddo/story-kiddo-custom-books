@@ -21,6 +21,8 @@ export type OrderChild = {
 export type OrderSummary = {
   id: string;
   orderNumber: number;
+  /** When the order was placed, for the live "being made" counter. */
+  createdAt: string | null;
   children: OrderChild[];
   track: Track;
   isDemo: boolean;
@@ -30,6 +32,8 @@ export type OrderSummary = {
   bookStatus: BookStatus;
   pages: string[] | null;
   illustrationUrls: (string | null)[] | null;
+  /** Signed URL of the generated cover, whose title is lettered into the art. */
+  coverUrl: string | null;
   previewGenerated: boolean;
 };
 
@@ -37,6 +41,16 @@ function asPages(value: unknown): string[] | null {
   if (!Array.isArray(value)) return null;
   const pages = value.filter((page): page is string => typeof page === "string" && page.trim().length > 0);
   return pages.length > 0 ? pages : null;
+}
+
+async function signStoragePath(path: string | null): Promise<string | null> {
+  if (!path) return null;
+  const supabase = createAdminSupabaseClient();
+  if (!supabase) return null;
+  const { data, error } = await supabase.storage
+    .from("book-illustrations")
+    .createSignedUrl(path, 60 * 60);
+  return error ? null : data?.signedUrl ?? null;
 }
 
 async function signIllustrationUrls(
@@ -105,6 +119,7 @@ export async function getOrderSummary(
     return {
       id,
       orderNumber: orderNumberFromDemoId(id),
+      createdAt: null,
       children,
       track,
       isDemo: true,
@@ -114,6 +129,7 @@ export async function getOrderSummary(
       bookStatus: "pending",
       pages: null,
       illustrationUrls: null,
+      coverUrl: null,
       previewGenerated: false,
     };
   }
@@ -123,7 +139,7 @@ export async function getOrderSummary(
 
   const { data: order, error } = await supabase
     .from("orders")
-    .select("id, order_number, child_name, child_age, status, track_id")
+    .select("id, order_number, child_name, child_age, status, track_id, created_at")
     .eq("id", id)
     .single();
 
@@ -155,9 +171,11 @@ export async function getOrderSummary(
 
   const { data: book } = await supabase
     .from("books")
-    .select("status, pages, illustrations, title, preview_generated")
+    .select("id, status, pages, illustrations, title, preview_generated")
     .eq("order_id", order.id)
     .maybeSingle();
+
+  const coverUrl = await signStoragePath(await loadCoverPath(book?.id));
 
   const pages = visiblePreviewSlice(asPages(book?.pages) ?? []);
   const bookStatus: BookStatus = book?.status ?? "pending";
@@ -169,6 +187,7 @@ export async function getOrderSummary(
   return {
     id: order.id,
     orderNumber: order.order_number,
+    createdAt: order.created_at ?? null,
     children,
     track,
     isDemo: false,
@@ -178,6 +197,24 @@ export async function getOrderSummary(
     bookStatus,
     pages: pages.length > 0 ? pages : null,
     illustrationUrls,
+    coverUrl,
     previewGenerated: Boolean(book?.preview_generated),
   };
+}
+
+/**
+ * Read in its own query so a database that has not run the cover migration
+ * yet still loads the rest of the order instead of failing the whole select.
+ */
+async function loadCoverPath(bookId: string | undefined): Promise<string | null> {
+  if (!bookId) return null;
+  const supabase = createAdminSupabaseClient();
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from("books")
+    .select("cover_path")
+    .eq("id", bookId)
+    .maybeSingle();
+  if (error) return null;
+  return data?.cover_path ?? null;
 }

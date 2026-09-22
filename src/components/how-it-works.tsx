@@ -2,8 +2,8 @@
 const STEPS = [
   {
     n: "1",
-    title: "Choose a theme",
-    body: "Pick the lesson you want the story to carry — letters, numbers, feelings, first days, and more.",
+    title: "Start with Alphabet",
+    body: "Open the Alphabet book and add your child's name, photo, and the details that make the story theirs.",
   },
   {
     n: "2",
@@ -18,7 +18,7 @@ const STEPS = [
   {
     n: "4",
     title: "Get their book",
-    body: "A personalized illustrated storybook — generation comes next; the order is saved today.",
+    body: "A personalized illustrated storybook — we write and illustrate it after you add their details.",
   },
 ];
 
@@ -28,10 +28,12 @@ export function HowItWorks() {
       {STEPS.map((step) => (
         <li
           key={step.n}
-          className="rounded-3xl border border-rule bg-cream/80 p-6 sm:p-7 shadow-[0_10px_24px_-16px_rgba(36,28,22,0.18)]"
+          className="paper-grain relative overflow-hidden rounded-[26px] bg-cream/85 p-6 shadow-[0_1px_0_rgba(255,255,255,0.6)_inset,0_0_0_1px_rgba(196,160,106,0.35),0_14px_26px_-20px_rgba(36,28,22,0.4)] sm:p-7"
         >
-          <span className="font-display text-3xl text-coral">{step.n}</span>
-          <h3 className="mt-3 text-lg text-ink">{step.title}</h3>
+          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-coral/12 font-display text-xl font-bold text-coral-dark">
+            {step.n}
+          </span>
+          <h3 className="mt-4 font-display text-lg font-bold text-ink">{step.title}</h3>
           <p className="mt-2 text-sm leading-relaxed text-ink-soft">{step.body}</p>
         </li>
       ))}

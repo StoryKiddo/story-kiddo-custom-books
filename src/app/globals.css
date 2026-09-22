@@ -1,17 +1,18 @@
 @import "tailwindcss";
 
-/* Brand tokens: warm ivory paper, espresso ink, coral as the single loud accent. */
+/* Brand tokens: warm ivory paper, espresso ink, coral as the single accent.
+   Sage and gold are illustration colors only — never UI accents. */
 :root {
-  --paper: #f6eee2;
-  --paper-deep: #eadcc8;
-  --cream: #fffaf4;
-  --ink: #241c16;
-  --ink-soft: #6a5d51;
-  --coral: #d96b4f;
-  --coral-dark: #b54e35;
+  --paper: #f7efe3;
+  --paper-deep: #ecdcc6;
+  --cream: #fffaf3;
+  --ink: #231a13;
+  --ink-soft: #6b5c4e;
+  --coral: #d5613f;
+  --coral-dark: #ab4728;
   --sage: #5a7d62;
   --gold: #c4a06a;
-  --rule: rgba(36, 28, 22, 0.1);
+  --rule: rgba(35, 26, 19, 0.1);
 }
 
 @theme inline {
@@ -27,6 +28,9 @@
   --color-rule: var(--rule);
   --font-sans: var(--font-nunito);
   --font-display: var(--font-fraunces);
+  /* Story text is book content, so it is set in the display serif too, just
+     lighter and looser than a heading. */
+  --font-story: var(--font-fraunces);
 }
 
 html {
@@ -38,11 +42,9 @@ body {
   color: var(--ink);
   font-family: var(--font-nunito), ui-sans-serif, system-ui, sans-serif;
   min-height: 100%;
-  /* Warm wash only — no mint/teal blobs that read as a generic template. */
   background-image:
-    radial-gradient(ellipse 90% 55% at 8% -8%, rgba(217, 107, 79, 0.13), transparent 52%),
-    radial-gradient(ellipse 70% 45% at 100% 0%, rgba(196, 160, 106, 0.16), transparent 48%),
-    radial-gradient(ellipse 50% 35% at 70% 100%, rgba(90, 125, 98, 0.07), transparent 50%);
+    radial-gradient(ellipse 90% 55% at 8% -8%, rgba(213, 97, 63, 0.1), transparent 52%),
+    radial-gradient(ellipse 70% 45% at 100% 0%, rgba(196, 160, 106, 0.14), transparent 48%);
 }
 
 h1,
@@ -51,34 +53,150 @@ h3,
 .font-display {
   font-family: var(--font-fraunces), ui-serif, Georgia, serif;
   font-optical-sizing: auto;
+  /* The soft, wonky cut of Fraunces — the same instance baked into cover art. */
+  font-variation-settings: "SOFT" 100, "WONK" 1;
+}
+
+.font-story {
+  font-family: var(--font-fraunces), ui-serif, Georgia, serif;
+  font-optical-sizing: auto;
+  font-variation-settings: "SOFT" 100, "WONK" 0;
 }
 
 ::selection {
-  background: #ead7a8;
+  background: #ecd5a6;
   color: var(--ink);
 }
 
-.track-cover {
-  transition:
-    transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow 0.35s ease,
-    border-color 0.2s ease;
+/* Printed-paper tooth. Sits on top of flat art so nothing reads as a flat div. */
+.paper-grain::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.22;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23g)'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+}
+
+/* A shelf of standing books: lift one when it is pointed at. */
+.book-mockup {
+  transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 @media (hover: hover) {
-  .track-cover:hover {
-    transform: translateY(-10px) scale(1.02);
+  .book-shelf-item:hover .book-mockup {
+    transform: translateY(-10px) rotate(-1deg);
+  }
+}
+
+.theme-tile {
+  transition:
+    transform 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.4s ease,
+    border-color 0.25s ease;
+}
+
+.theme-tile-art {
+  transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (hover: hover) {
+  .theme-tile:hover {
+    transform: translateY(-8px) rotate(-0.5deg);
     box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.55) inset,
-      0 18px 28px -10px rgba(36, 28, 22, 0.22),
-      0 8px 12px -8px rgba(36, 28, 22, 0.16);
+      0 1px 0 rgba(255, 255, 255, 0.6) inset,
+      0 26px 36px -18px rgba(35, 26, 19, 0.42),
+      0 10px 14px -10px rgba(35, 26, 19, 0.24);
+  }
+
+  .theme-tile:hover .theme-tile-art {
+    transform: scale(1.06);
+  }
+
+  .theme-tile:hover .theme-tile-nudge {
+    transform: translateX(4px);
+  }
+}
+
+.theme-tile-nudge {
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Hero books breathe very slightly, like they are resting on a shelf. */
+@keyframes shelf-float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -10px, 0);
+  }
+}
+
+.shelf-float {
+  animation: shelf-float 7s ease-in-out infinite;
+}
+
+/* Book being made: a bar that sweeps while the story and pictures are worked on. */
+@keyframes press-sweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(340%);
+  }
+}
+
+.press-sweep {
+  animation: press-sweep 2.1s cubic-bezier(0.45, 0.05, 0.3, 1) infinite;
+}
+
+@keyframes ink-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.82);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.ink-pulse {
+  animation: ink-pulse 1.5s ease-in-out infinite;
+}
+
+.story-parchment {
+  /* Background-image (not border-image) so the blank center stays empty
+     and the WebP's transparent surround composites over the page instead
+     of painting as black. */
+  padding: 2.4rem 4.6rem;
+  background: url("/brand/panels/parchment.webp") center / 100% 100% no-repeat;
+}
+
+@media (min-width: 640px) {
+  .story-parchment {
+    padding: 2.8rem 5.4rem;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .track-cover,
-  .track-cover:hover {
+  .theme-tile,
+  .theme-tile:hover,
+  .theme-tile-art,
+  .theme-tile:hover .theme-tile-art,
+  .book-mockup,
+  .book-shelf-item:hover .book-mockup {
     transform: none;
     transition: box-shadow 0.2s ease, border-color 0.2s ease;
+  }
+
+  .shelf-float,
+  .press-sweep,
+  .ink-pulse {
+    animation: none;
   }
 }
