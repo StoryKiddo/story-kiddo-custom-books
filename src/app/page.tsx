@@ -36,8 +36,7 @@ export default function HomePage() {
           </h2>
           <p className="mt-3 text-ink-soft">
             Letter adventures from A to Z, starring your child. More educational
-            themes are coming later — this first book is the one you can make
-            today.
+            themes are coming later — launching with the Alphabet book first.
           </p>
         </div>
         <div className="grid max-w-md gap-6 sm:max-w-none sm:grid-cols-2 lg:grid-cols-3 lg:gap-7">

@@ -59,8 +59,8 @@ export function ProductStorySection() {
           Read it together.
         </h2>
         <p className="mt-3 text-ink-soft">
-          A printed Alphabet hardcover — pages you can turn, on the sofa or at
-          bedtime.
+          A personalized hardcover, made to order — pages you can turn, on the
+          sofa or at bedtime.
         </p>
       </div>
 
@@ -87,7 +87,7 @@ export function ProductStorySection() {
           alt={LIFESTYLE.hands.alt}
           sizes="(min-width: 1024px) 70rem, 92vw"
           objectPosition="46% 50%"
-          caption="The printed pages of the Alphabet hardcover."
+          caption="Pages of a personalized Alphabet hardcover."
         />
       </div>
     </section>

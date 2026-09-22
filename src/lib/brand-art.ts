@@ -31,7 +31,7 @@ export const LIFESTYLE = {
   },
   hands: {
     src: "/brand/lifestyle/alphabet-hands.webp",
-    alt: "Close-up of a child's hands turning a page of a printed Alphabet hardcover, with crayons on the table",
+    alt: "Close-up of a child's hands turning a page of a personalized Alphabet hardcover, with crayons on the table",
   },
 } as const;
 

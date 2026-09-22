@@ -43,7 +43,8 @@ import {
 } from "@/lib/personalization";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
-import { getTrackBySlug, type Track } from "@/lib/tracks";
+import { resolveCreateOrderTrack } from "@/lib/create-order-track";
+import { isLaunchTrack, type Track } from "@/lib/tracks";
 
 export type CreateOrderState = {
   error?: string;
@@ -137,9 +138,13 @@ async function submitCreateOrder(formData: FormData): Promise<CreateOrderState> 
   const trackSlug = asString(formData.get("track"));
   const parsed = parseChildren(formData);
 
-  const track = getTrackBySlug(trackSlug);
-  if (!track) {
-    return { error: CREATE_ORDER_MESSAGES.themeMissing };
+  const resolved = resolveCreateOrderTrack(trackSlug);
+  if ("error" in resolved) {
+    return { error: resolved.error };
+  }
+  const { track } = resolved;
+  if (!isLaunchTrack(track.slug)) {
+    return { error: CREATE_ORDER_MESSAGES.themeNotLaunching };
   }
 
   if ("error" in parsed) {

@@ -18,7 +18,7 @@ const STEPS = [
   {
     n: "4",
     title: "Get their book",
-    body: "A personalized illustrated storybook — generation comes next; the order is saved today.",
+    body: "A personalized illustrated storybook — we write and illustrate it after you add their details.",
   },
 ];
 

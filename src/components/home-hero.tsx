@@ -102,7 +102,7 @@ export function BestsellerRail({ tracks }: { tracks: Track[] }) {
           </h2>
           <p className="mt-2 max-w-xl text-ink-soft">
             Every copy is written and illustrated around one child. Start with
-            the Alphabet hardcover we&apos;re shipping today.
+            a personalized Alphabet hardcover, made to order.
           </p>
         </div>
         <figure className="overflow-hidden rounded-[28px] border border-ink/10 shadow-[0_18px_32px_-24px_rgba(35,26,19,0.45)]">

@@ -440,7 +440,7 @@ export function ChildDetailsForm({ track }: { track: Track }) {
 
         <p className="flex items-center justify-center gap-2 text-center text-sm text-ink-soft">
           <ShieldMark />
-          Preview and edit your book before it prints.
+          Preview your personalized book — nothing is ordered yet.
         </p>
 
         {step > 0 ? (

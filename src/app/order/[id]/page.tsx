@@ -51,7 +51,7 @@ export default async function OrderPage({
 
         <div className="lg:pt-2">
           <p className="text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-sage sm:text-xs">
-            Order received
+            Preview
           </p>
           <h1 className="mt-3 font-display text-[2.1rem] font-bold leading-[1.08] tracking-[-0.02em] text-ink sm:text-[2.6rem]">
             {order.bookTitle}

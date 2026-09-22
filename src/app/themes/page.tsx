@@ -16,7 +16,7 @@ export default function TracksPage() {
     <div className="mx-auto w-full max-w-6xl px-5 py-12 sm:py-16">
       <div className="mb-10 max-w-2xl space-y-4 sm:mb-12">
         <p className="text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-sage sm:text-xs">
-          Now shipping
+          Launching first
         </p>
         <h1 className="text-[2.15rem] leading-[1.12] tracking-[-0.03em] text-ink sm:text-5xl">
           The Alphabet book
@@ -33,8 +33,8 @@ export default function TracksPage() {
         ))}
       </div>
       <p className="mt-10 max-w-xl rounded-[24px] border border-rule bg-cream/80 px-5 py-4 text-sm text-ink-soft">
-        Numbers, colors, feelings, and the rest of the shelf are still in the
-        catalog for a later round. They aren&apos;t for sale yet —{" "}
+        Numbers, colors, feelings, and the rest of the shelf are coming later.
+        We&apos;re launching with the Alphabet book first —{" "}
         <Link
           href={createHrefForLaunchTrack()}
           className="font-semibold text-coral underline decoration-coral/40 underline-offset-4"
