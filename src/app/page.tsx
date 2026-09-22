@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { BestsellerRail, HomeHero } from "@/components/home-hero";
+import { GiftMomentSection, ProductStorySection } from "@/components/home-lifestyle";
 import { HowItWorks } from "@/components/how-it-works";
 import { TrackCard } from "@/components/track-card";
 import { createHrefForLaunchTrack, themeTileHref } from "@/lib/track-links";
@@ -14,6 +15,8 @@ export default function HomePage() {
 
       <BestsellerRail tracks={tracks} />
 
+      <GiftMomentSection />
+
       <section
         id="how-it-works"
         className="mx-auto w-full max-w-6xl scroll-mt-24 px-5 pb-16 pt-12 sm:pb-20"
@@ -23,6 +26,8 @@ export default function HomePage() {
         </h2>
         <HowItWorks />
       </section>
+
+      <ProductStorySection />
 
       <section className="mx-auto w-full max-w-6xl px-5 pb-20 sm:pb-24">
         <div className="mb-8 max-w-xl sm:mb-10">
