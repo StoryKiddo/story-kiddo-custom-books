@@ -18,8 +18,8 @@ export function GiftMomentSection() {
           The gift where they are the story.
         </h2>
         <p className="mt-3 text-ink-soft">
-          Hand them a hardcover Alphabet book with their name lettered on the
-          cover — from a parent, or from the whole family.
+          Hand them a personalized Alphabet story with their name lettered on
+          the cover — from a parent, or from the whole family.
         </p>
         <p className="mt-5">
           <Link
@@ -59,8 +59,8 @@ export function ProductStorySection() {
           Read it together.
         </h2>
         <p className="mt-3 text-ink-soft">
-          A personalized hardcover, made to order — pages you can turn, on the
-          sofa or at bedtime.
+          A personalized story preview - made around your child — pages you can
+          turn, on the sofa or at bedtime.
         </p>
       </div>
 

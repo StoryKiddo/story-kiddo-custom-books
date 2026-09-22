@@ -38,9 +38,9 @@ export function HomeHero() {
             </span>
           </h1>
           <p className="mx-auto mt-6 max-w-md text-base leading-relaxed text-ink-soft sm:text-lg lg:mx-0">
-            Add a photo, and we write and illustrate a hardcover Alphabet book
-            where your child is the hero — their name lettered right into the
-            cover art.
+            Add a photo, and we write and illustrate a personalized Alphabet
+            book preview where your child is the hero — their name lettered
+            right into the cover art.
           </p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3 lg:justify-start">
             <Link
@@ -102,7 +102,7 @@ export function BestsellerRail({ tracks }: { tracks: Track[] }) {
           </h2>
           <p className="mt-2 max-w-xl text-ink-soft">
             Every copy is written and illustrated around one child. Start with
-            a personalized Alphabet hardcover, made to order.
+            a personalized Alphabet book preview, made around your child.
           </p>
         </div>
         <figure className="overflow-hidden rounded-[28px] border border-ink/10 shadow-[0_18px_32px_-24px_rgba(35,26,19,0.45)]">
