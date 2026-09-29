@@ -113,9 +113,13 @@ export default async function OrderPage({
         <>
           {stillWorking ? (
             <>
-              <RefreshWhileGenerating orderId={order.id} />
+              <RefreshWhileGenerating
+                orderId={order.id}
+                resumeToken={order.generationResumeToken}
+              />
               <BookInProgress
                 status={order.bookStatus}
+                phase={order.generationPhase}
                 track={order.track}
                 childName={order.children[0]?.name ?? "your child"}
                 startedAtIso={order.createdAt}
@@ -135,9 +139,15 @@ export default async function OrderPage({
         </p>
       ) : (
         <>
-          {waitingOnStory ? <RefreshWhileGenerating orderId={order.id} /> : null}
+          {waitingOnStory ? (
+            <RefreshWhileGenerating
+              orderId={order.id}
+              resumeToken={order.generationResumeToken}
+            />
+          ) : null}
           <BookInProgress
             status={order.bookStatus}
+            phase={order.generationPhase}
             track={order.track}
             childName={order.children[0]?.name ?? "your child"}
             startedAtIso={order.createdAt}

@@ -2,8 +2,8 @@
 
 /**
  * What the preview page shows while a book is being made: the stage the
- * pipeline is actually on, a live elapsed counter, and the only time claim we
- * can stand behind — the limit generation is given.
+ * pipeline is actually on, a live elapsed counter, and honest working /
+ * stalled / retryable / failed copy. There is no guaranteed timeout to quote.
  *
  * The status poll that reloads the page lives in `RefreshWhileGenerating`;
  * this component only reports.
@@ -20,22 +20,25 @@ import {
   generationStage,
   isOverGenerationLimit,
 } from "@/lib/generation-progress";
+import type { GenerationPhase } from "@/lib/generation-steps";
 import type { BookStatus } from "@/lib/supabase/types";
 import type { Track } from "@/lib/tracks";
 
 export function BookInProgress({
   status,
+  phase = null,
   track,
   childName,
   startedAtIso,
 }: {
   status: BookStatus;
+  phase?: GenerationPhase | null;
   track: Track;
   childName: string;
   /** When the order was placed, so the counter is real rather than page-local. */
   startedAtIso: string | null;
 }) {
-  const stage = generationStage(status);
+  const stage = generationStage(status, phase);
   const [elapsedMs, setElapsedMs] = useState<number | null>(null);
 
   useEffect(() => {
@@ -70,7 +73,17 @@ export function BookInProgress({
 
         <div>
           <p className="text-[0.68rem] font-semibold uppercase tracking-[0.2em]" style={{ color: deep }}>
-            {overLimit ? "Taking longer than it should" : "Being made now"}
+            {phase === "failed"
+              ? "Needs another go"
+              : phase === "held"
+                ? "Paused for review"
+              : phase === "stalled"
+                ? "Paused — picking it up"
+                : phase === "retryable"
+                  ? "Retrying a step"
+                  : overLimit
+                    ? "Still working"
+                    : "Being made now"}
           </p>
           <h2 className="mt-2 text-2xl leading-tight text-ink sm:text-[1.75rem]">
             {`We're making ${childName}'s book`}
@@ -116,12 +129,12 @@ export function BookInProgress({
 
           <p className="mt-4 text-sm text-ink-soft">
             {elapsedMs === null
-              ? generationExpectation()
+              ? generationExpectation(phase)
               : overLimit
                 ? `This has been going for ${formatElapsed(
                     elapsedMs,
-                  )}, which is past the limit we give it. Refresh in a moment — if it still isn't here, the story below is saved and we can pick it up again.`
-                : `Working for ${formatElapsed(elapsedMs)}. ${generationExpectation()}`}
+                  )}. ${generationExpectation(phase)}`
+                : `Working for ${formatElapsed(elapsedMs)}. ${generationExpectation(phase)}`}
           </p>
           <p className="mt-2 text-sm text-ink-soft">
             This page updates itself — you don&apos;t need to reload it.

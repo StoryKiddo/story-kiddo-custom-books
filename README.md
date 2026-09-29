@@ -33,6 +33,61 @@ Open [http://localhost:3000](http://localhost:3000).
 
 The service role key is used only on the server (see `src/lib/supabase/admin.ts`) so photo uploads and order inserts can bypass Row Level Security. Do not prefix it with `NEXT_PUBLIC_`.
 
+## Durable generation rollout
+
+Story, cover, and each preview page are separate leased steps in `book_generation_steps`. Deploying the app does **not** apply SQL.
+
+1. Run `supabase/migrations/20260929180000_generation_steps.sql` in the Supabase SQL editor (production project).
+2. Verify with:
+
+```sql
+select conname from pg_constraint
+where conrelid = 'public.book_generation_steps'::regclass;
+select proname from pg_proc
+where proname in (
+  'claim_book_generation_step',
+  'complete_book_generation_step',
+  'fail_book_generation_step',
+  'hold_book_generation_step',
+  'generation_step_owns_lease'
+);
+select generation_auto_run, status
+from public.books
+where order_id = '2678ceb9-e58f-4ad8-b41b-fc4fd00c279d';
+select book_id, step, status, attempts, last_error
+from public.book_generation_steps
+where book_id = (
+  select id from public.books
+  where order_id = '2678ceb9-e58f-4ad8-b41b-fc4fd00c279d'
+);
+```
+
+Existing books, including that stuck order, seed incomplete steps as `held` and keep `generation_auto_run = false`. Opening the order page will not start an image-model call.
+
+3. Deploy the Next.js app after that SQL has succeeded.
+4. New orders set `generation_auto_run = true` at create time and start generation through `after()` on create, then continue via `POST /api/orders/[id]/generation-tick` using a per-order resume token from the order page. `GET /api/orders/[id]/generation-status` is read-only and never starts a model call.
+
+### Recover a stranded order (inspect first)
+
+```bash
+node --experimental-strip-types scripts/recover-generation.ts \
+  --order-id 2678ceb9-e58f-4ad8-b41b-fc4fd00c279d
+```
+
+That command is read-only. It prints whether cover/master/preview objects already exist and which image-model calls a resume would make. Do not pass `--execute` until that report and likely costs are reviewed. Execution also requires `--confirm-order-id` with the same UUID. Execute releases **that one book's** held/expired steps to pending, then drains; it does not turn auto-run on for other orders.
+
+### Caps and remaining URL-access risk
+
+- Each step allows at most 3 attempts. Image steps that time out or outlive their lease go to `held` and do not retry on their own.
+- `POST /generation-tick` requires the resume token, `generation_auto_run = true`, and a book status of pending/generating/illustrating. Complete and failed books are refused.
+- Unauthenticated holders of a **new-order** confirmation URL can still read the resume token from the page HTML and POST ticks until those attempt caps are hit. That is the remaining URL-access billing risk. Old orders do not expose a working tick: auto-run stays off and the page does not receive a resume token.
+
+### Rollback
+
+1. Redeploy the previous app revision. Old code ignores `book_generation_steps`.
+2. Leave the new table in place (harmless) or, only if you must: drop the claim/complete/fail/hold/owns/save functions, then `drop table public.book_generation_steps;`
+3. Do not drop `books.generation_resume_token` while any in-flight order page still needs it.
+
 ## Project map
 
 | Path | What it is |

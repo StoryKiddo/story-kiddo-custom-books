@@ -67,11 +67,33 @@ export type BookRow = {
   /** Giver line painted at the foot of the cover, e.g. "From Mom and Dad". */
   dedication: string | null;
   preview_generated: boolean;
+  /** Order-page secret used to POST /generation-tick. Never expose on GET status. */
+  generation_resume_token: string;
+  /** When false, POST /generation-tick will not start model calls. Existing books stay false. */
+  generation_auto_run: boolean;
   story_type: string | null;
   blueprint: Record<string, unknown> | null;
   continuity: Record<string, unknown> | null;
   page_plan: Record<string, unknown>[] | null;
   created_at: string;
+};
+
+export type BookGenerationStepId = "story" | "cover" | "page_0" | "page_1";
+export type BookGenerationStepStatus = "pending" | "running" | "complete" | "failed" | "held";
+
+export type BookGenerationStepRow = {
+  book_id: string;
+  step: BookGenerationStepId;
+  status: BookGenerationStepStatus;
+  attempts: number;
+  max_attempts: number;
+  lease_token: string | null;
+  lease_expires_at: string | null;
+  next_retry_at: string | null;
+  last_error: string | null;
+  artifact_path: string | null;
+  completed_at: string | null;
+  updated_at: string;
 };
 
 /**
@@ -118,9 +140,85 @@ export type Database = {
         Update: Partial<BookRow>;
         Relationships: [];
       };
+      book_generation_steps: {
+        Row: BookGenerationStepRow;
+        Insert: Partial<BookGenerationStepRow> & {
+          book_id: string;
+          step: BookGenerationStepId;
+        };
+        Update: Partial<BookGenerationStepRow>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      claim_book_generation_step: {
+        Args: {
+          p_book_id: string;
+          p_step: string;
+          p_lease_token: string;
+          p_lease_seconds: number;
+        };
+        Returns: BookGenerationStepRow | null;
+      };
+      generation_step_owns_lease: {
+        Args: { p_book_id: string; p_step: string; p_lease_token: string };
+        Returns: boolean;
+      };
+      complete_book_generation_step: {
+        Args: {
+          p_book_id: string;
+          p_step: string;
+          p_lease_token: string;
+          p_artifact_path: string | null;
+        };
+        Returns: boolean;
+      };
+      fail_book_generation_step: {
+        Args: {
+          p_book_id: string;
+          p_step: string;
+          p_lease_token: string;
+          p_error: string;
+          p_next_retry_at: string;
+        };
+        Returns: boolean;
+      };
+      hold_book_generation_step: {
+        Args: {
+          p_book_id: string;
+          p_step: string;
+          p_lease_token: string;
+          p_error: string;
+        };
+        Returns: boolean;
+      };
+      save_book_cover_if_lease: {
+        Args: { p_book_id: string; p_lease_token: string; p_cover_path: string };
+        Returns: boolean;
+      };
+      save_book_illustration_if_lease: {
+        Args: {
+          p_book_id: string;
+          p_step: string;
+          p_lease_token: string;
+          p_page_index: number;
+          p_preview_path: string;
+        };
+        Returns: boolean;
+      };
+      save_book_story_if_lease: {
+        Args: {
+          p_book_id: string;
+          p_lease_token: string;
+          p_pages: unknown;
+          p_blueprint: unknown;
+          p_continuity: unknown;
+          p_page_plan: unknown;
+        };
+        Returns: boolean;
+      };
+    };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };

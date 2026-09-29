@@ -57,9 +57,9 @@ function createFakeClock() {
 }
 
 describe("generation-status endpoint contract", () => {
-  it("selects only status and preview_generated", () => {
-    assert.equal(GENERATION_STATUS_SELECT, "status, preview_generated");
-    assert.doesNotMatch(GENERATION_STATUS_SELECT, /illustrations|pages|title/);
+  it("selects only status fields and a cover-path boolean source", () => {
+    assert.equal(GENERATION_STATUS_SELECT, "id, status, preview_generated, cover_path, generation_auto_run");
+    assert.doesNotMatch(GENERATION_STATUS_SELECT, /illustrations|pages|title|generation_resume_token/);
   });
 
   it("never returns illustrations, pages, or storage paths", () => {
@@ -97,7 +97,10 @@ describe("RefreshWhileGenerating poller", () => {
     assert.match(component, /visibilitychange/);
     assert.match(component, /document\.hidden/);
     assert.match(component, /poll\.stop\(\)/);
-    assert.match(page, /RefreshWhileGenerating orderId=\{order\.id\}/);
+    assert.match(page, /RefreshWhileGenerating/);
+    assert.match(component, /generationTickPath/);
+    assert.match(component, /resumeToken/);
+    assert.match(component, /method:\s*"POST"/);
 
     const poller = readFileSync(new URL("./generation-status.ts", import.meta.url), "utf8");
     assert.match(poller, /AbortController/);
@@ -105,7 +108,7 @@ describe("RefreshWhileGenerating poller", () => {
     assert.doesNotMatch(poller, /setInterval/);
   });
 
-  it("refreshes only on terminal or preview-ready state", () => {
+  it("refreshes on a newly finished page as well as terminal state", () => {
     assert.equal(shouldRefreshAfterGenerationStatus({ status: "pending" }), false);
     assert.equal(shouldRefreshAfterGenerationStatus({ status: "generating" }), false);
     assert.equal(shouldRefreshAfterGenerationStatus({ status: "illustrating" }), false);
@@ -116,7 +119,7 @@ describe("RefreshWhileGenerating poller", () => {
       true,
     );
     const refreshCalls = component.match(/router\.refresh\(\)/g) ?? [];
-    assert.equal(refreshCalls.length, 1);
+    assert.equal(refreshCalls.length, 2);
   });
 
   it("schedules 5s, 10s, 20s, 30s without repeating the first delay", async () => {
@@ -252,18 +255,18 @@ describe("RefreshWhileGenerating poller", () => {
 });
 
 describe("getOrderSummary signed URLs", () => {
-  it("does not create signed illustration URLs for a non-terminal book", () => {
+  it("does not create signed illustration URLs before the story exists", () => {
     const paths = ["book/preview/page-01.png", "book/preview/page-02.png"];
     assert.equal(illustrationPathsToSign("pending", paths), null);
     assert.equal(illustrationPathsToSign("generating", paths), null);
-    assert.equal(illustrationPathsToSign("illustrating", paths), null);
     assert.equal(isTerminalBookStatus("pending"), false);
     assert.equal(isTerminalBookStatus("generating"), false);
     assert.equal(isTerminalBookStatus("illustrating"), false);
   });
 
-  it("signs only after the book is complete or failed", () => {
+  it("signs finished preview pages while later pages are still painting", () => {
     const paths = ["book/preview/page-01.png", null, "book/preview/page-03.png"];
+    assert.deepEqual(illustrationPathsToSign("illustrating", paths), paths);
     assert.deepEqual(illustrationPathsToSign("complete", paths), paths);
     assert.deepEqual(illustrationPathsToSign("failed", paths), paths);
     assert.equal(isTerminalBookStatus("complete"), true);

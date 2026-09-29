@@ -6,9 +6,10 @@
 
 import type { BookStatus } from "./supabase/types.ts";
 import { PREVIEW_STORY_PAGE_COUNT } from "./personalization.ts";
+import type { GenerationPhase } from "./generation-steps.ts";
 
 /** The only books columns the status endpoint is allowed to read. */
-export const GENERATION_STATUS_SELECT = "status, preview_generated";
+export const GENERATION_STATUS_SELECT = "id, status, preview_generated, cover_path, generation_auto_run";
 
 export const GENERATION_STATUS_INITIAL_DELAY_MS = 5_000;
 export const GENERATION_STATUS_MAX_DELAY_MS = 30_000;
@@ -17,6 +18,10 @@ export const GENERATION_STATUS_POLL_MAX_MS = 30 * 60 * 1000;
 export type GenerationStatusPayload = {
   status: BookStatus;
   previewGenerated: boolean;
+  coverReady?: boolean;
+  previewReadyCount?: number;
+  phase?: GenerationPhase;
+  needsTick?: boolean;
 };
 
 export function isTerminalBookStatus(status: BookStatus): boolean {
@@ -27,6 +32,10 @@ export function generationStatusPath(orderId: string): string {
   return `/api/orders/${encodeURIComponent(orderId)}/generation-status`;
 }
 
+export function generationTickPath(orderId: string): string {
+  return `/api/orders/${encodeURIComponent(orderId)}/generation-tick`;
+}
+
 /** 5s → 10s → 20s → 30s, then stay at 30s. */
 export function nextGenerationStatusDelayMs(previousDelayMs: number): number {
   if (previousDelayMs < 5_000) return 5_000;
@@ -35,12 +44,47 @@ export function nextGenerationStatusDelayMs(previousDelayMs: number): number {
   return GENERATION_STATUS_MAX_DELAY_MS;
 }
 
-export function shouldRefreshAfterGenerationStatus(payload: {
+export function generationStatusFingerprint(payload: {
   status?: string | null;
   previewGenerated?: boolean | null;
-}): boolean {
-  if (payload.previewGenerated === true) return true;
-  return payload.status === "complete" || payload.status === "failed";
+  coverReady?: boolean | null;
+  previewReadyCount?: number | null;
+  phase?: string | null;
+}): string {
+  return [
+    payload.status ?? "",
+    payload.previewGenerated === true ? "1" : "0",
+    payload.coverReady === true ? "1" : "0",
+    String(payload.previewReadyCount ?? 0),
+    payload.phase ?? "",
+  ].join("|");
+}
+
+export function shouldRefreshAfterGenerationStatus(
+  payload: {
+    status?: string | null;
+    previewGenerated?: boolean | null;
+    coverReady?: boolean | null;
+    previewReadyCount?: number | null;
+    phase?: string | null;
+  },
+  previous?: {
+    status?: string | null;
+    previewGenerated?: boolean | null;
+    coverReady?: boolean | null;
+    previewReadyCount?: number | null;
+    phase?: string | null;
+  } | null,
+): boolean {
+  if (payload.previewGenerated === true && previous?.previewGenerated !== true) return true;
+  if (payload.status === "complete" || payload.status === "failed") {
+    if (!previous) return true;
+    return generationStatusFingerprint(payload) !== generationStatusFingerprint(previous);
+  }
+  if (!previous) {
+    return (payload.previewReadyCount ?? 0) > 0 || payload.coverReady === true;
+  }
+  return generationStatusFingerprint(payload) !== generationStatusFingerprint(previous);
 }
 
 export function isGenerationStatusPollExpired(startedAtMs: number, nowMs: number): boolean {
@@ -50,7 +94,9 @@ export function isGenerationStatusPollExpired(startedAtMs: number, nowMs: number
 export type GenerationStatusPollDeps = {
   /** Resolves the parsed status payload, or null when the request was not usable. */
   fetchStatus: (signal: AbortSignal) => Promise<unknown>;
-  /** Called at most once, when generation is terminal or the preview is ready. */
+  /** Called when a newly finished page/cover should be shown. May fire more than once. */
+  onProgress?: () => void;
+  /** Called at most once, when generation is terminal. */
   onReady: () => void;
   setTimer: (run: () => void, delayMs: number) => number;
   clearTimer: (id: number) => void;
@@ -64,9 +110,17 @@ export type GenerationStatusPollHandle = {
   stop: () => void;
 };
 
+function asStatusPayload(value: unknown): GenerationStatusPayload | null {
+  if (!value || typeof value !== "object") return null;
+  const payload = value as GenerationStatusPayload;
+  if (typeof payload.status !== "string") return null;
+  return payload;
+}
+
 /**
  * One self-scheduling timeout, so status requests can never overlap.
  * Timers and fetching are injected to keep this testable without a DOM.
+ * GET status never starts generation; the caller POSTs a tick separately.
  */
 export function startGenerationStatusPoll(
   deps: GenerationStatusPollDeps,
@@ -81,14 +135,15 @@ export function startGenerationStatusPoll(
   let inflight: AbortController | null = null;
   // Holds the delay already in flight, so the first 5s is not scheduled twice.
   let delayMs = GENERATION_STATUS_INITIAL_DELAY_MS;
+  let previous: GenerationStatusPayload | null = null;
 
   const expired = () => isGenerationStatusPollExpired(startedAt, now());
 
   const clearTimer = () => {
     if (timerId !== null) {
       deps.clearTimer(timerId);
-      timerId = null;
     }
+    timerId = null;
   };
 
   const abortInflight = () => {
@@ -113,13 +168,22 @@ export function startGenerationStatusPoll(
     inflight = controller;
 
     try {
-      const payload = await deps.fetchStatus(controller.signal);
+      const raw = await deps.fetchStatus(controller.signal);
       if (stopped || ready) return;
-      if (payload && typeof payload === "object" && shouldRefreshAfterGenerationStatus(payload)) {
-        ready = true;
-        clearTimer();
-        deps.onReady();
-        return;
+      const payload = asStatusPayload(raw);
+      if (payload) {
+        if (shouldRefreshAfterGenerationStatus(payload, previous)) {
+          previous = payload;
+          deps.onProgress?.();
+        } else {
+          previous = payload;
+        }
+        if (isTerminalBookStatus(payload.status)) {
+          ready = true;
+          clearTimer();
+          deps.onReady();
+          return;
+        }
       }
     } catch {
       // Keep the page usable. The next scheduled poll uses backoff.
@@ -156,11 +220,11 @@ function asIllustrationPaths(value: unknown): (string | null)[] | null {
   return paths.some((path) => path) ? paths : null;
 }
 
-/** Paths getOrderSummary may sign. Null while generation is still in progress. */
+/** Paths getOrderSummary may sign. Story-only statuses stay unsigned. */
 export function illustrationPathsToSign(
   bookStatus: BookStatus,
   illustrations: unknown,
 ): (string | null)[] | null {
-  if (!isTerminalBookStatus(bookStatus)) return null;
+  if (bookStatus === "pending" || bookStatus === "generating") return null;
   return asIllustrationPaths(illustrations)?.slice(0, PREVIEW_STORY_PAGE_COUNT) ?? null;
 }
