@@ -242,6 +242,8 @@ ${alphabetRules}
 
 If a recurring object or personal hook is in the blueprint, let it matter more than once when it fits — not a single throwaway mention.
 
+Each page's scene_description is a one-sentence visual brief that names a specific place within the world, what the child is doing, the camera, and the light. Adjacent pages must differ in place and in action.
+
 Return JSON:
 {
   "pages": [

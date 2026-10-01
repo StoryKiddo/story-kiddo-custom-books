@@ -169,6 +169,11 @@ describe("blueprint prompts", () => {
     assert.match(pagesPrompt, /EXACTLY 26 pages/);
     assert.match(pagesPrompt, /ONE continuous story/i);
     assert.match(pagesPrompt, /Do not write a babyish A-is-for list/);
+    assert.match(
+      pagesPrompt,
+      /scene_description is a one-sentence visual brief that names a specific place within the world, what the child is doing, the camera, and the light/,
+    );
+    assert.match(pagesPrompt, /Adjacent pages must differ in place and in action/);
   });
 
   it("keeps each child's notes and interests separate in a sibling book", () => {

@@ -51,6 +51,26 @@ export function buildImageEditRequestFields(prompt: string): ImageEditRequestFie
   };
 }
 
+export const PAGE_COMPOSITIONS = [
+  "close shot, low angle, child large in the foreground",
+  "wide shot, child small in the landscape, lots of setting",
+  "over-the-shoulder from behind, face still turned enough to read",
+  "side profile in motion, medium shot",
+  "bird's-eye looking down, child clearly readable in the frame",
+  "two-shot at eye level (or a single child centred at eye level)",
+] as const;
+
+export function compositionForPage(pageIndex: number): (typeof PAGE_COMPOSITIONS)[number] {
+  const length = PAGE_COMPOSITIONS.length;
+  const index = ((pageIndex % length) + length) % length;
+  return PAGE_COMPOSITIONS[index];
+}
+
+export type PreviousIllustrationPage = {
+  text?: string | null;
+  scene?: string | null;
+};
+
 export function buildIllustrationPrompt(
   track: Track,
   children: IllustrationChild[],
@@ -59,6 +79,7 @@ export function buildIllustrationPrompt(
   pageCount: number,
   extras?: {
     sceneDescription?: string | null;
+    previousPage?: PreviousIllustrationPage | null;
     continuity?: {
       world_description?: string | null;
       companion_characters?: string[];
@@ -89,11 +110,11 @@ export function buildIllustrationPrompt(
   const continuityLines = continuity
     ? [
         continuity.world_description
-          ? `Keep the world consistent: ${continuity.world_description}`
+          ? `The world's look, art style and palette stay the same, but the location within that world, the pose, and the composition change on every page: ${continuity.world_description}`
           : "",
         continuity.clothing ? `Keep clothing consistent: ${continuity.clothing}` : "",
         continuity.recurring_objects && continuity.recurring_objects.length > 0
-          ? `Recurring objects that may appear: ${continuity.recurring_objects.join(", ")}`
+          ? `Recurring objects may appear (${continuity.recurring_objects.join(", ")}) but keep them small or in the background; never make the same object the focal point on two pages in a row.`
           : "",
         continuity.companion_characters && continuity.companion_characters.length > 0
           ? `Companion characters: ${continuity.companion_characters.join(", ")}`
@@ -109,10 +130,16 @@ export function buildIllustrationPrompt(
       ? `Scene notes for the illustrator:\n"""\n${scene}\n"""`
       : "";
 
-  const cameras = ["a close framing", "a medium shot", "a wide shot"] as const;
-  const camera = cameras[pageIndex % cameras.length];
+  const previousSummary =
+    pageIndex > 0
+      ? extras?.previousPage?.scene?.trim() || extras?.previousPage?.text?.trim() || ""
+      : "";
+  const previousBlock = previousSummary
+    ? `The previous page showed: ${previousSummary}. This page must be a clearly different picture: a new spot within the same world, a new action, a new camera angle, a different pose for each child, and different foreground objects. Do not reuse the previous page's composition, prop arrangement or pose.`
+    : "";
+
   const framing = `Frame every named child from head-and-shoulders or wider so the face is fully visible. Never crop a face out of the picture. If the story says a child wears a mask, goggles, or hat, show it with the face still visible around it — keep the eyes and expression readable.
-Compose this page as ${camera}. Change the child's pose, the camera angle, and at least one setting detail from any neighbouring page. No two neighbouring pages may share the same composition.`;
+Compose this page as: ${compositionForPage(pageIndex)}.`;
 
   return `${ART_STYLE}
 
@@ -126,6 +153,7 @@ Keep each child's identity locked to their numbered reference image across this 
 ${together}
 
 ${framing}
+${previousBlock ? `\n${previousBlock}` : ""}
 
 Scene to illustrate, from the story:
 """

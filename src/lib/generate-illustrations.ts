@@ -15,6 +15,7 @@ import {
   describeIllustrationApiError,
   previewIllustrationCount,
   type IllustrationChild,
+  type PreviousIllustrationPage,
 } from "@/lib/illustration-prompt";
 import {
   masterIllustrationObjectPath,
@@ -93,6 +94,7 @@ export async function generatePageIllustration(options: {
   pageIndex: number;
   pageCount: number;
   sceneDescription?: string | null;
+  previousPage?: PreviousIllustrationPage | null;
   continuity?: BookContinuity | null;
 }): Promise<Buffer> {
   const apiKey = getOpenAIApiKey();
@@ -109,6 +111,7 @@ export async function generatePageIllustration(options: {
     options.pageCount,
     {
       sceneDescription: options.sceneDescription,
+      previousPage: options.previousPage,
       continuity: options.continuity,
     },
   );
@@ -464,6 +467,13 @@ export async function illustrateBook(options: {
         pageIndex: i,
         pageCount: options.pages.length,
         sceneDescription: options.pagePlan?.[i]?.scene_description,
+        previousPage:
+          i > 0
+            ? {
+                text: options.pages[i - 1],
+                scene: options.pagePlan?.[i - 1]?.scene_description ?? null,
+              }
+            : undefined,
         continuity: options.continuity,
       });
       const masterPath = masterIllustrationObjectPath(options.bookId, i);
