@@ -251,13 +251,41 @@ describe("cover proofing", () => {
 });
 
 describe("caption panels", () => {
-  it("uses shared parchment instead of hard-cornered paper boxes", () => {
+  it("sets captions on the picture with no plate, crop, or beige strip", () => {
     const panel = readFileSync(new URL("../components/story-panel.tsx", import.meta.url), "utf8");
     const pages = readFileSync(new URL("../components/story-pages.tsx", import.meta.url), "utf8");
-    assert.match(panel, /story-parchment/);
+    const dedication = readFileSync(
+      new URL("../components/dedication-page.tsx", import.meta.url),
+      "utf8",
+    );
+    const css = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8");
+
+    assert.match(pages, /aspect-\[2\/3\]/);
+    assert.match(pages, /max-w-\[32rem\]/);
+    assert.match(pages, /story-caption-scrim|StoryPanel/);
+    assert.doesNotMatch(pages, /object-cover/);
+    assert.doesNotMatch(pages, /aspect-\[4\/5\]/);
+    assert.doesNotMatch(pages, /aspect-\[16\/10\]/);
+    assert.doesNotMatch(pages, /pb-8/);
+    assert.doesNotMatch(pages, /-mt-14/);
+    assert.doesNotMatch(pages, /story-parchment/);
+    assert.doesNotMatch(pages, /parchment\.webp/);
+
+    assert.doesNotMatch(panel, /story-parchment/);
+    assert.doesNotMatch(panel, /parchment\.webp/);
     assert.doesNotMatch(panel, /#fdf3e0/);
-    assert.doesNotMatch(panel, /PanelBody/);
-    assert.match(pages, /story-illustration-placeholder/);
-    assert.doesNotMatch(pages, /#fdf3e0/);
+    assert.match(panel, /story-caption-scrim/);
+
+    assert.match(dedication, /story-page-wash/);
+    assert.match(dedication, /aspect-\[2\/3\]/);
+    assert.doesNotMatch(dedication, /StoryPanel/);
+    assert.doesNotMatch(dedication, /story-parchment/);
+    assert.doesNotMatch(dedication, /parchment\.webp/);
+
+    assert.match(css, /story-caption-scrim/);
+    assert.match(css, /overflow:\s*visible/);
+    assert.doesNotMatch(css, /url\([^)]*parchment\.webp/);
+    assert.doesNotMatch(css, /story-parchment/);
+    assert.match(css, /opaque raster, not a transparent frame/);
   });
 });

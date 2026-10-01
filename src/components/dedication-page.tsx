@@ -3,8 +3,6 @@
  * The note is plain text. Blank notes are not rendered by the caller.
  */
 
-import { StoryPanel } from "@/components/story-panel";
-import { withAlpha } from "@/lib/color";
 import type { Track } from "@/lib/tracks";
 
 export function DedicationPage({
@@ -14,23 +12,23 @@ export function DedicationPage({
   track: Pick<Track, "slug" | "art">;
   note: string;
 }) {
-  const { deep, accent } = track.art;
+  const { deep } = track.art;
 
   return (
     <section className="mt-12">
       <figure
-        className="paper-grain relative overflow-hidden rounded-[30px] border border-ink/10 shadow-[0_1px_0_rgba(255,255,255,0.6)_inset,0_22px_38px_-24px_rgba(35,26,19,0.5)]"
-        style={{ background: `linear-gradient(180deg, ${withAlpha(accent, 0.22)}, ${withAlpha(accent, 0.1)})` }}
+        className="relative mx-auto w-full max-w-[32rem] overflow-hidden rounded-[30px]"
+        style={{
+          boxShadow: "0 1px 0 rgba(255,255,255,0.18) inset, 0 22px 38px -24px rgba(35,26,19,0.5)",
+        }}
       >
-        <div className="relative px-4 py-10 sm:px-8 sm:py-12">
-          <StoryPanel track={track}>
-            <p
-              className="whitespace-pre-line text-center font-story text-[1.16rem] leading-[1.75] sm:text-[1.3rem]"
-              style={{ color: deep }}
-            >
-              {note}
-            </p>
-          </StoryPanel>
+        <div className="story-page-wash relative flex aspect-[2/3] w-full items-center justify-center px-8 py-10 sm:px-10">
+          <p
+            className="whitespace-pre-line text-center font-story text-[1.16rem] leading-[1.75] sm:text-[1.3rem]"
+            style={{ color: deep }}
+          >
+            {note}
+          </p>
         </div>
       </figure>
     </section>

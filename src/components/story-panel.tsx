@@ -1,8 +1,6 @@
 /**
- * The panel a page's words are set in.
- *
- * Every page uses the same parchment treatment so captions blend into the
- * artwork — rounded corners, a soft edge, no hard white or gray box.
+ * Caption overlay for a story page. Sits on the artwork over a fading scrim.
+ * No plate, no parchment image, no border — the picture is the page.
  */
 
 import type { ReactNode } from "react";
@@ -19,11 +17,5 @@ export function StoryPanel({
   children: ReactNode;
   kind?: PanelKind;
 }) {
-  return (
-    <div className="relative mx-auto w-full max-w-[46rem]">
-      <div className="story-parchment relative">
-        <div className="relative px-1 py-2 sm:px-2 sm:py-3">{children}</div>
-      </div>
-    </div>
-  );
+  return <div className="story-caption-scrim">{children}</div>;
 }

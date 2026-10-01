@@ -169,32 +169,38 @@ h3,
   animation: ink-pulse 1.5s ease-in-out infinite;
 }
 
-.story-parchment {
-  /* Background-image (not border-image) so the blank center stays empty
-     and the WebP's transparent surround composites over the page instead
-     of painting as black. Soft parchment so captions blend into the art. */
-  padding: 2.4rem 4.6rem;
-  border-radius: 28px;
-  background-color: #f4e6c8;
-  background-image: url("/brand/panels/parchment.webp");
-  background-position: center;
-  background-size: 100% 100%;
-  background-repeat: no-repeat;
-  box-shadow:
-    0 18px 36px -26px rgba(35, 26, 19, 0.4),
-    inset 0 0 0 1px rgba(255, 250, 243, 0.4);
-}
-
-.story-illustration-placeholder {
-  border-radius: 24px 24px 32px 32px;
+.story-page-wash {
+  /* Opaque parchment wash for empty 2:3 page cards (unpainted preview slots
+     and the dedication page). This is a CSS gradient, not parchment.webp —
+     that file is an opaque raster, not a transparent frame, and is not used
+     behind captions. */
   background:
-    radial-gradient(ellipse at 50% 28%, rgba(255, 250, 243, 0.5), transparent 58%),
+    radial-gradient(ellipse at 50% 28%, rgba(255, 246, 230, 0.35), transparent 58%),
     linear-gradient(180deg, #f3e4c8, #e8d4ad);
 }
 
+.story-caption-scrim {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 10;
+  overflow: visible;
+  padding: 2.8rem 1.35rem 1.35rem;
+  background: linear-gradient(
+    to top,
+    rgba(40, 28, 20, 0.65) 0%,
+    rgba(40, 28, 20, 0.4) 55%,
+    transparent 100%
+  );
+}
+
+.story-caption-text {
+  font-size: clamp(0.95rem, 3.2vw, 1.16rem);
+}
+
 @media (min-width: 640px) {
-  .story-parchment {
-    padding: 2.8rem 5.4rem;
+  .story-caption-text {
+    font-size: clamp(1.05rem, 2.2vw, 1.3rem);
   }
 }
 
