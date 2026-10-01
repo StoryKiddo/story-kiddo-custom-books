@@ -22,7 +22,7 @@ import {
   stampCustomerPreview,
 } from "@/lib/illustration-watermark";
 import type { BookContinuity, PagePlanItem } from "@/lib/story-blueprint";
-import { coverLockup, dedicationLine, personalizedBookCopy } from "@/lib/book-title";
+import { coverLockup, coverStarringLine, personalizedBookCopy } from "@/lib/book-title";
 import {
   COVER_PROOF_MODEL,
   CoverVerificationError,
@@ -159,7 +159,7 @@ async function readCoverText(client: OpenAI, png: Buffer): Promise<string | null
           content: [
             {
               type: "text",
-              text: "Transcribe the title lettering, each child's name, and the dedication banner in this book cover, exactly as spelled, one line per line of text. Ignore letters that are objects in the scene, such as wooden alphabet blocks. If you cannot read the cover, reply NONE.",
+              text: "Transcribe the title lettering, each child's name, and any starring subtitle in this book cover, exactly as spelled, one line per line of text. Ignore letters that are objects in the scene, such as wooden alphabet blocks. If you cannot read the cover, reply NONE.",
             },
             {
               type: "image_url",
@@ -185,7 +185,6 @@ export async function generateCoverArt(options: {
   children: IllustrationChild[];
   referenceImages: File[];
   title: string;
-  dedication: string;
 }): Promise<{ png: Buffer; attempts: number; issues: string[] }> {
   const apiKey = getOpenAIApiKey();
   if (!apiKey) {
@@ -194,11 +193,12 @@ export async function generateCoverArt(options: {
 
   const client = new OpenAI({ apiKey });
   const lockup = coverLockup(options.title);
+  const starring = coverStarringLine(options.children, options.track);
   const basePrompt = buildCoverPrompt({
     track: options.track,
     children: options.children,
     lockup,
-    dedication: options.dedication,
+    starring,
   });
   const childNames = options.children.map((child) => child.name);
 
@@ -226,7 +226,7 @@ export async function generateCoverArt(options: {
       readText,
       childNames,
       lockup,
-      dedication: options.dedication,
+      starring,
     });
     const decision = decideCoverAttempt(attempt, issues);
 
@@ -408,7 +408,6 @@ export async function illustrateBook(options: {
   track: Track;
   pages: string[];
   children: IllustrationChild[];
-  dedication?: string | null;
   pagePlan?: PagePlanItem[];
   continuity?: BookContinuity | null;
 }): Promise<(string | null)[]> {
@@ -428,7 +427,6 @@ export async function illustrateBook(options: {
     children: options.children,
     referenceImages,
     title,
-    dedication: dedicationLine(options.dedication),
   });
 
   const coverPath = coverObjectPath(options.bookId);

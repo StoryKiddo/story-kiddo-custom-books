@@ -87,10 +87,7 @@ function StoryPage({
           />
         ) : (
           <div
-            className="aspect-[4/5] w-full sm:aspect-[16/10]"
-            style={{
-              background: `linear-gradient(180deg, ${withAlpha(accent, 0.35)}, ${withAlpha(accent, 0.12)})`,
-            }}
+            className="story-illustration-placeholder aspect-[4/5] w-full sm:aspect-[16/10]"
           />
         )}
         <PageNumber number={number} deep={deep} />

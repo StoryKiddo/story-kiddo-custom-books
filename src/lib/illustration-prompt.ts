@@ -15,9 +15,13 @@ export const PREVIEW_ILLUSTRATION_COUNT = 2;
 
 export type IllustrationSlot = "image" | "loading" | "full-book" | "none";
 
-export const ART_STYLE = `3D animated children's-book illustration, like a high-quality computer-animated film still.
-Rounded, appealing character design; soft cinematic lighting; rich, friendly colors; gentle materials and rounded forms.
-Not a photograph, not photorealistic live-action, and not a flat 2D drawing.`;
+/**
+ * Craft and finish for customer books. Theme (setting, wardrobe, mood) comes
+ * from the chosen story — do not force a mystical look onto every book.
+ */
+export const ART_STYLE = `Classic painterly children's storybook illustration: oil-and-gouache picture-book craft, visible brushwork, rich colour, warm paper texture, and a well-printed picture-book finish.
+Follow this book's theme for setting, wardrobe, and mood. Do not force a mystical or enchanted look unless the theme calls for it.
+Not plastic, not 3D-cartoon, not a CGI film still, not babyish, and not a photograph.`;
 
 export type IllustrationChild = {
   name: string;
@@ -67,18 +71,18 @@ export function buildIllustrationPrompt(
   const childLines = children
     .map((child, index) => {
       const imageNumber = index + 1;
-      return `Image ${imageNumber}: ${child.name} (age ${child.age}) — the child in this photo. Use Image ${imageNumber} as the only identity source for ${child.name}. Preserve ${child.name}'s exact likeness: face shape, eyes, eyebrows, nose, mouth, skin tone, hair color, hair texture, and distinctive features. Draw ${child.name} as a 3D animated character who still looks like this child, not a generic cartoon and not a photo collage.`;
+      return `Image ${imageNumber}: ${child.name} (age ${child.age}) — the child in this photo. Use Image ${imageNumber} as the only identity source for ${child.name}. Preserve ${child.name}'s exact likeness: face shape, eyes, eyebrows, nose, mouth, skin tone, hair color, hair texture, and distinctive features. Paint ${child.name} as a storybook character who still looks like this child, not a generic cartoon and not a photo collage.`;
     })
     .join("\n");
 
   const together =
     children.length > 1
-      ? `Include every named child together in this scene as consistent 3D animated characters. None of them is left out. Do not mix identities between children.`
+      ? `Include every named child together in this scene as consistent painted storybook characters. None of them is left out. Do not mix identities between children.`
       : `The named child is the star of this picture.`;
 
   const letterNote =
     track.slug === "alphabet"
-      ? `If this page is about a letter, you may paint that single large letter as a 3D picture-book prop in the scene — not a computer font, not a caption overlay.`
+      ? `If this page is about a letter, you may paint that single large letter as a picture-book prop in the scene — not a computer font, not a caption overlay.`
       : `Do not add titles, captions, speech bubbles, watermarks, or paragraphs of text.`;
 
   const continuity = extras?.continuity;
@@ -105,6 +109,11 @@ export function buildIllustrationPrompt(
       ? `Scene notes for the illustrator:\n"""\n${scene}\n"""`
       : "";
 
+  const cameras = ["a close framing", "a medium shot", "a wide shot"] as const;
+  const camera = cameras[pageIndex % cameras.length];
+  const framing = `Frame every named child from head-and-shoulders or wider so the face is fully visible. Never crop a face out of the picture. If the story says a child wears a mask, goggles, or hat, show it with the face still visible around it — keep the eyes and expression readable.
+Compose this page as ${camera}. Change the child's pose, the camera angle, and at least one setting detail from any neighbouring page. No two neighbouring pages may share the same composition.`;
+
   return `${ART_STYLE}
 
 This is page ${pageIndex + 1} of ${pageCount} in a personalized picture book.
@@ -115,6 +124,8 @@ ${childLines}
 
 Keep each child's identity locked to their numbered reference image across this page.
 ${together}
+
+${framing}
 
 Scene to illustrate, from the story:
 """

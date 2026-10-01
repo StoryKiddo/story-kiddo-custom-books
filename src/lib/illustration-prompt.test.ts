@@ -71,14 +71,34 @@ describe("illustration prompt", () => {
     assert.match(prompt, /Scene notes for the illustrator/);
   });
 
-  it("asks for a 3D animated children's-book style, not watercolor", () => {
-    assert.match(ART_STYLE, /3D animated/i);
-    assert.doesNotMatch(ART_STYLE, /watercolor/i);
-    assert.doesNotMatch(ART_STYLE, /pencil-sketch/i);
+  it("asks for painterly storybook craft, not 3D cartoon", () => {
+    assert.match(ART_STYLE, /painterly/i);
+    assert.match(ART_STYLE, /Do not force a mystical or enchanted look/i);
+    assert.match(ART_STYLE, /Not plastic/i);
+    assert.doesNotMatch(ART_STYLE, /3D animated/i);
 
     const prompt = buildIllustrationPrompt(manners, [mia], "Mia says please.", 0, 8);
-    assert.match(prompt, /3D animated/i);
-    assert.doesNotMatch(prompt, /watercolor/i);
+    assert.match(prompt, /painterly/i);
+    assert.doesNotMatch(prompt, /3D animated/i);
+  });
+
+  it("keeps the child's face in frame and varies neighbouring pages", () => {
+    const first = buildIllustrationPrompt(manners, [mia], "Mia says please.", 0, 8);
+    const second = buildIllustrationPrompt(manners, [mia], "Mia waves.", 1, 8);
+    const third = buildIllustrationPrompt(manners, [mia], "Mia runs.", 2, 8);
+
+    for (const prompt of [first, second, third]) {
+      assert.match(prompt, /head-and-shoulders or wider/);
+      assert.match(prompt, /Never crop a face/);
+      assert.match(prompt, /mask, goggles, or hat/);
+      assert.match(prompt, /No two neighbouring pages may share the same composition/);
+      assert.match(prompt, /Do not add titles, captions, speech bubbles, watermarks/);
+    }
+
+    assert.match(first, /close framing/);
+    assert.match(second, /medium shot/);
+    assert.match(third, /wide shot/);
+    assert.notEqual(first.includes("close framing"), second.includes("close framing"));
   });
 
   it("maps a single child to Image 1 and locks identity to that photo", () => {

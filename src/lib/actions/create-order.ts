@@ -17,7 +17,7 @@
 import { randomUUID } from "node:crypto";
 import { after } from "next/server";
 import { redirect } from "next/navigation";
-import { dedicationLine, personalizedBookCopy } from "@/lib/book-title";
+import { personalizedBookCopy, printableDedication } from "@/lib/book-title";
 import {
   CREATE_ORDER_MESSAGES,
   isAllowedPhotoType,
@@ -71,7 +71,7 @@ type ParsedChild = {
 
 function parseChildren(
   formData: FormData,
-): { children: ParsedChild[]; storyType: StoryTypeId; dedication: string } | { error: string } {
+): { children: ParsedChild[]; storyType: StoryTypeId; dedication: string | null } | { error: string } {
   const names = formData.getAll("childName").map(asString);
   const ages = formData.getAll("childAge").map(asString);
   const photos = formData.getAll("photo");
@@ -118,7 +118,7 @@ function parseChildren(
     });
   }
 
-  return { children, storyType, dedication: dedicationLine(asString(formData.get("giver"))) };
+  return { children, storyType, dedication: printableDedication(asString(formData.get("giver"))) };
 }
 
 export async function createOrder(
@@ -164,6 +164,9 @@ async function submitCreateOrder(formData: FormData): Promise<CreateOrderState> 
     for (const child of children) {
       params.append("childName", child.name);
       params.append("childAge", String(child.age));
+    }
+    if (dedication) {
+      params.set("dedication", dedication);
     }
     redirect(`/order/${demoId}?${params.toString()}`);
   }

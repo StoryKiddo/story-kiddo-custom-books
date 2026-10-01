@@ -15,7 +15,7 @@ import {
   persistPreviewPage,
   persistWatermarkedPreviewFromMaster,
 } from "@/lib/generate-illustrations";
-import { dedicationLine, personalizedBookCopy } from "@/lib/book-title";
+import { personalizedBookCopy } from "@/lib/book-title";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { getTrackBySlug } from "@/lib/tracks";
 import { parseStoryType } from "@/lib/personalization";
@@ -315,7 +315,6 @@ export async function createGenerationRuntime(bookId: string): Promise<Generatio
           children: book.children,
           referenceImages: images,
           title,
-          dedication: dedicationLine(book.dedication),
         });
         return cover.png;
       } catch (error) {

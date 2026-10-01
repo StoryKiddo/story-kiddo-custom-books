@@ -64,7 +64,7 @@ export type BookRow = {
   illustrations: (string | null)[] | null;
   /** Storage path of the generated cover, whose title is lettered into the art. */
   cover_path: string | null;
-  /** Giver line painted at the foot of the cover, e.g. "From Mom and Dad". */
+  /** Optional note for a dedication page inside the book. Never printed on the cover. */
   dedication: string | null;
   preview_generated: boolean;
   /** Order-page secret used to POST /generation-tick. Never expose on GET status. */

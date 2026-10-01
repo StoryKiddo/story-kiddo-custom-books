@@ -3,9 +3,21 @@
  *
  * Alphabet ships as the supplied WebP files. Other theme rasters stay on disk
  * for later rounds and are not shown on customer-facing pages yet.
+ *
+ * Two-tier art direction (prompt text for future generation; files on disk
+ * are not regenerated here):
+ * - Brand / hero / example images: enchanted painterly storybook.
+ * - Customer books: the same craft, following the customer's theme.
+ * Kid likeness in hero and example images must match the books' painterly
+ * finish — no 3D-cartoon bait and switch.
  */
 
 import { isLaunchTrack } from "./tracks.ts";
+
+/** Site hero and example images. Not used for customer book pages. */
+export const BRAND_ART_DIRECTION = `Classic painterly storybook illustration: enchanted, golden light, mystical and magical, oil-and-gouache picture-book craft, visible brushwork, rich colour.
+Never plastic, never 3D-cartoon, never CGI, never babyish.
+Paint children with the same painterly likeness and finish customer books use, so example and hero kid images match the books that are actually generated.`;
 
 export const HERO_GIFT_SRC = "/brand/hero/gift-moment.webp";
 export const HERO_PRESS_SRC = "/brand/hero/book-press.webp";

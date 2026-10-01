@@ -3,7 +3,7 @@
  * Demo orders (ids that start with `demo-`) never hit the database.
  */
 
-import { personalizedBookCopy } from "@/lib/book-title";
+import { personalizedBookCopy, printableDedication } from "@/lib/book-title";
 import { orderNumberFromDemoId } from "@/lib/order-number";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { getTrackBySlug, type Track } from "@/lib/tracks";
@@ -40,6 +40,8 @@ export type OrderSummary = {
   illustrationUrls: (string | null)[] | null;
   /** Signed URL of the generated cover, whose title is lettered into the art. */
   coverUrl: string | null;
+  /** Optional note for a dedication page inside the book. Null means none. */
+  dedication: string | null;
   previewGenerated: boolean;
   generationResumeToken: string | null;
   generationPhase: GenerationPhase | null;
@@ -138,6 +140,7 @@ export async function getOrderSummary(
       pages: null,
       illustrationUrls: null,
       coverUrl: null,
+      dedication: printableDedication(first(searchParams.dedication)),
       previewGenerated: false,
       generationResumeToken: null,
       generationPhase: null,
@@ -186,6 +189,7 @@ export async function getOrderSummary(
     .maybeSingle();
 
   const coverUrl = await signStoragePath(await loadCoverPath(book?.id));
+  const dedication = printableDedication(await loadDedication(book?.id));
   const generation = await loadGenerationMeta(book?.id);
 
   const pages = visiblePreviewSlice(asPages(book?.pages) ?? []);
@@ -209,6 +213,7 @@ export async function getOrderSummary(
     pages: pages.length > 0 ? pages : null,
     illustrationUrls,
     coverUrl,
+    dedication,
     previewGenerated: Boolean(book?.preview_generated),
     generationResumeToken: generation.resumeToken,
     generationPhase: generation.phase,
@@ -230,6 +235,19 @@ async function loadCoverPath(bookId: string | undefined): Promise<string | null>
     .maybeSingle();
   if (error) return null;
   return data?.cover_path ?? null;
+}
+
+async function loadDedication(bookId: string | undefined): Promise<string | null> {
+  if (!bookId) return null;
+  const supabase = createAdminSupabaseClient();
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from("books")
+    .select("dedication")
+    .eq("id", bookId)
+    .maybeSingle();
+  if (error) return null;
+  return data?.dedication ?? null;
 }
 
 async function loadGenerationMeta(
