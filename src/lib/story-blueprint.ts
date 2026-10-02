@@ -64,7 +64,52 @@ export type PagePlanItem = {
   letter: string | null;
   scene_description: string;
   characters_present: string[];
+  location?: string;
+  time_and_light?: string;
+  camera_shot?: string;
+  action?: string;
+  focus_object?: string;
+  magic_moment?: string;
+  palette?: string;
 };
+
+export const LOCATION_ROTATION = [
+  "garden path",
+  "kitchen doorway",
+  "hilltop meadow",
+  "bridge over a stream",
+  "treehouse platform",
+  "sandy shore",
+] as const;
+
+export const TIME_AND_LIGHT_ROTATION = [
+  "golden morning",
+  "bright noon",
+  "soft afternoon shade",
+  "warm sunset",
+  "blue dusk lanterns",
+  "moonlit night",
+] as const;
+
+export const FOCUS_OBJECT_ROTATION = [
+  "lantern",
+  "basket",
+  "kite",
+  "shell",
+  "key",
+  "flower",
+] as const;
+
+export const PALETTE_ROTATION = [
+  "warm honey golds",
+  "leafy greens",
+  "soft peach and cream",
+  "cool twilight blues",
+  "berry reds",
+  "sand and sky",
+] as const;
+
+const MAX_PLAN_FIELD_WORDS = 8;
 
 export const BLUEPRINT_SYSTEM_PROMPT = `You design picture-book story blueprints for Story Kiddo Custom Books.
 
@@ -81,7 +126,7 @@ Rules:
 export const PAGES_SYSTEM_PROMPT = `You write personalized picture-book text for Story Kiddo Custom Books.
 
 Voice:
-- Warm, positive, playful read-alouds. Light rhyme is welcome when it sounds natural — never forced.
+- Warm, positive, playful read-alouds. Rhyme in simple couplets (AABB) or easy ABAB, with natural rhymes and a steady read-aloud rhythm. Use each child's first name naturally; never twist a line just to make a name rhyme.
 - No scares, no violence, no brand names, no mention of AI.
 - Use each child's real name exactly as given.
 - Follow the approved blueprint. Do not reinvent the premise, companions, world, goal, or ending.
@@ -240,7 +285,20 @@ ${children.map((child, index) => childBlock(child, index)).join("\n\n")}
 
 ${alphabetRules}
 
+Rhyme in simple couplets (AABB) or easy ABAB. Natural rhymes and a steady read-aloud rhythm. Use each child's first name naturally; never twist a line just to make a name rhyme.
+
+Give the book a small arc: set out, one fun challenge or discovery tied to this theme, then a warm ending. Setting and events come from the chosen theme.
+
+Alphabet books keep A to Z in order, but the letters join one small adventure so each letter moves the story forward.
+
 If a recurring object or personal hook is in the blueprint, let it matter more than once when it fits — not a single throwaway mention.
+
+Each page's scene_description is a one-sentence visual brief that names a specific place within the world, what the child is doing, the camera, and the light. Adjacent pages must differ in place and in action.
+
+Fill every page's location, time_and_light, camera_shot, action, focus_object, magic_moment, and palette. Each of those fields is a short phrase, at most eight words.
+Adjacent pages never share location or time_and_light. Across the book use at least one distinct location per two pages (minimum three locations in a short book) and at least three different light/time/palette moods, all inside the same world.
+Adjacent pages use a different focus_object. At least one page in three has a small magic_moment.
+Do not change the title, world, premise, or ending.
 
 Return JSON:
 {
@@ -249,7 +307,14 @@ Return JSON:
       "letter": string or null,
       "page_text": string,
       "scene_description": string,
-      "characters_present": string[]
+      "characters_present": string[],
+      "location": string,
+      "time_and_light": string,
+      "camera_shot": string,
+      "action": string,
+      "focus_object": string,
+      "magic_moment": string,
+      "palette": string
     }
   ],
   "continuity": {
@@ -285,6 +350,102 @@ function asStringOrNull(value: unknown): string | null {
 function asStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value.map((item) => asString(item)).filter(Boolean);
+}
+
+function shortPlanPhrase(value: unknown): string | undefined {
+  const words = asString(value).split(/\s+/).filter(Boolean);
+  if (words.length === 0) return undefined;
+  return words.slice(0, MAX_PLAN_FIELD_WORDS).join(" ");
+}
+
+function optionalSceneFields(record: Record<string, unknown>): Partial<PagePlanItem> {
+  const fields: Partial<PagePlanItem> = {};
+  const location = shortPlanPhrase(record.location);
+  const time_and_light = shortPlanPhrase(record.time_and_light);
+  const camera_shot = shortPlanPhrase(record.camera_shot);
+  const action = shortPlanPhrase(record.action);
+  const focus_object = shortPlanPhrase(record.focus_object);
+  const magic_moment = shortPlanPhrase(record.magic_moment);
+  const palette = shortPlanPhrase(record.palette);
+  if (location) fields.location = location;
+  if (time_and_light) fields.time_and_light = time_and_light;
+  if (camera_shot) fields.camera_shot = camera_shot;
+  if (action) fields.action = action;
+  if (focus_object) fields.focus_object = focus_object;
+  if (magic_moment) fields.magic_moment = magic_moment;
+  if (palette) fields.palette = palette;
+  return fields;
+}
+
+function samePlanValue(left?: string, right?: string): boolean {
+  const a = (left ?? "").trim().toLowerCase();
+  const b = (right ?? "").trim().toLowerCase();
+  return a.length > 0 && a === b;
+}
+
+function pickRotated(
+  list: readonly string[],
+  pageIndex: number,
+  offset: number,
+  avoid?: string,
+): string {
+  const skip = (avoid ?? "").trim().toLowerCase();
+  for (let step = 0; step < list.length; step++) {
+    const value = list[(pageIndex + offset + step) % list.length];
+    if (value.toLowerCase() !== skip) return value;
+  }
+  return list[(pageIndex + offset) % list.length];
+}
+
+/** Stable start index for time/light and palette rotations. */
+export function varietyOffset(
+  childNames: string[],
+  themeSlug: string,
+  storyType: string,
+): number {
+  const seed = `${childNames.map((name) => name.trim().toLowerCase()).join("|")}|${themeSlug}|${storyType}`;
+  let hash = 2166136261;
+  for (let i = 0; i < seed.length; i++) {
+    hash ^= seed.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return Math.abs(hash) % TIME_AND_LIGHT_ROTATION.length;
+}
+
+/**
+ * After parsing, replace adjacent repeats of location, time_and_light, or
+ * focus_object from a fixed rotation. Never fails the book.
+ */
+export function repairPagePlanVariety(
+  plan: PagePlanItem[],
+  options: { childNames: string[]; themeSlug: string; storyType: string },
+): PagePlanItem[] {
+  const offset = varietyOffset(options.childNames, options.themeSlug, options.storyType);
+  const next = plan.map((item) => ({ ...item }));
+  for (let i = 1; i < next.length; i++) {
+    const previous = next[i - 1];
+    const current = next[i];
+    if (samePlanValue(previous.location, current.location)) {
+      current.location = pickRotated(LOCATION_ROTATION, i, offset, previous.location);
+    }
+    if (samePlanValue(previous.time_and_light, current.time_and_light)) {
+      current.time_and_light = pickRotated(
+        TIME_AND_LIGHT_ROTATION,
+        i,
+        offset,
+        previous.time_and_light,
+      );
+    }
+    if (samePlanValue(previous.focus_object, current.focus_object)) {
+      current.focus_object = pickRotated(
+        FOCUS_OBJECT_ROTATION,
+        i,
+        offset,
+        previous.focus_object,
+      );
+    }
+  }
+  return next;
 }
 
 export function parseBlueprint(raw: string): StoryBlueprint {
@@ -355,15 +516,16 @@ export function parseGeneratedPages(raw: string): {
         typeof record.page === "number" && Number.isFinite(record.page)
           ? record.page
           : index + 1;
-      collected.push({
-        order: pageNumber,
-        text,
-        plan: {
-          letter: asStringOrNull(record.letter),
-          scene_description: asString(record.scene_description) || text,
-          characters_present: asStringArray(record.characters_present),
-        },
-      });
+        collected.push({
+          order: pageNumber,
+          text,
+          plan: {
+            letter: asStringOrNull(record.letter),
+            scene_description: asString(record.scene_description) || text,
+            characters_present: asStringArray(record.characters_present),
+            ...optionalSceneFields(record),
+          },
+        });
     });
   }
   collected.sort((a, b) => a.order - b.order);

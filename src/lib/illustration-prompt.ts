@@ -4,6 +4,7 @@
  */
 
 import type { Track } from "./tracks";
+import type { PagePlanItem } from "./story-blueprint";
 
 export const ILLUSTRATION_MODEL = "gpt-image-2" as const;
 export const ILLUSTRATION_SIZE = "1024x1536" as const;
@@ -15,9 +16,13 @@ export const PREVIEW_ILLUSTRATION_COUNT = 2;
 
 export type IllustrationSlot = "image" | "loading" | "full-book" | "none";
 
-export const ART_STYLE = `3D animated children's-book illustration, like a high-quality computer-animated film still.
-Rounded, appealing character design; soft cinematic lighting; rich, friendly colors; gentle materials and rounded forms.
-Not a photograph, not photorealistic live-action, and not a flat 2D drawing.`;
+/**
+ * Craft and finish for customer books. Theme (setting, wardrobe, mood) comes
+ * from the chosen story — do not force a mystical look onto every book.
+ */
+export const ART_STYLE = `Classic painterly children's storybook illustration: oil-and-gouache picture-book craft, visible brushwork, rich colour, warm paper texture, and a well-printed picture-book finish.
+Follow this book's theme for setting, wardrobe, and mood. Do not force a mystical or enchanted look unless the theme calls for it.
+Not plastic, not 3D-cartoon, not a CGI film still, not babyish, and not a photograph.`;
 
 export type IllustrationChild = {
   name: string;
@@ -47,6 +52,29 @@ export function buildImageEditRequestFields(prompt: string): ImageEditRequestFie
   };
 }
 
+export const PAGE_COMPOSITIONS = [
+  "close shot, low angle, child large in the foreground",
+  "wide shot, child small in the landscape, lots of setting",
+  "over-the-shoulder from behind, face still turned enough to read",
+  "side profile in motion, medium shot",
+  "bird's-eye looking down, child clearly readable in the frame",
+  "two-shot at eye level (or a single child centred at eye level)",
+] as const;
+
+export function compositionForPage(pageIndex: number): (typeof PAGE_COMPOSITIONS)[number] {
+  const length = PAGE_COMPOSITIONS.length;
+  const index = ((pageIndex % length) + length) % length;
+  return PAGE_COMPOSITIONS[index];
+}
+
+export type PreviousIllustrationPage = {
+  text?: string | null;
+  scene?: string | null;
+};
+
+export const BOTTOM_THIRD_CAPTION_RULE =
+  "Keep the bottom third of the picture calmer and slightly darker, with soft shapes and no busy detail or bright highlights, because the story text sits over it.";
+
 export function buildIllustrationPrompt(
   track: Track,
   children: IllustrationChild[],
@@ -55,6 +83,8 @@ export function buildIllustrationPrompt(
   pageCount: number,
   extras?: {
     sceneDescription?: string | null;
+    previousPage?: PreviousIllustrationPage | null;
+    pagePlanItem?: PagePlanItem | null;
     continuity?: {
       world_description?: string | null;
       companion_characters?: string[];
@@ -67,29 +97,29 @@ export function buildIllustrationPrompt(
   const childLines = children
     .map((child, index) => {
       const imageNumber = index + 1;
-      return `Image ${imageNumber}: ${child.name} (age ${child.age}) — the child in this photo. Use Image ${imageNumber} as the only identity source for ${child.name}. Preserve ${child.name}'s exact likeness: face shape, eyes, eyebrows, nose, mouth, skin tone, hair color, hair texture, and distinctive features. Draw ${child.name} as a 3D animated character who still looks like this child, not a generic cartoon and not a photo collage.`;
+      return `Image ${imageNumber}: ${child.name} (age ${child.age}) — the child in this photo. Use Image ${imageNumber} as the only identity source for ${child.name}. Preserve ${child.name}'s exact likeness: face shape, eyes, eyebrows, nose, mouth, skin tone, hair color, hair texture, and distinctive features. Paint ${child.name} as a storybook character who still looks like this child, not a generic cartoon and not a photo collage.`;
     })
     .join("\n");
 
   const together =
     children.length > 1
-      ? `Include every named child together in this scene as consistent 3D animated characters. None of them is left out. Do not mix identities between children.`
+      ? `Include every named child together in this scene as consistent painted storybook characters. None of them is left out. Do not mix identities between children.`
       : `The named child is the star of this picture.`;
 
   const letterNote =
     track.slug === "alphabet"
-      ? `If this page is about a letter, you may paint that single large letter as a 3D picture-book prop in the scene — not a computer font, not a caption overlay.`
+      ? `If this page is about a letter, you may paint that single large letter as a picture-book prop in the scene — not a computer font, not a caption overlay.`
       : `Do not add titles, captions, speech bubbles, watermarks, or paragraphs of text.`;
 
   const continuity = extras?.continuity;
   const continuityLines = continuity
     ? [
         continuity.world_description
-          ? `Keep the world consistent: ${continuity.world_description}`
+          ? `The world's look, art style and palette stay the same, but the location within that world, the pose, and the composition change on every page: ${continuity.world_description}`
           : "",
         continuity.clothing ? `Keep clothing consistent: ${continuity.clothing}` : "",
         continuity.recurring_objects && continuity.recurring_objects.length > 0
-          ? `Recurring objects that may appear: ${continuity.recurring_objects.join(", ")}`
+          ? `Recurring objects may appear (${continuity.recurring_objects.join(", ")}) but keep them small or in the background; never make the same object the focal point on two pages in a row.`
           : "",
         continuity.companion_characters && continuity.companion_characters.length > 0
           ? `Companion characters: ${continuity.companion_characters.join(", ")}`
@@ -105,6 +135,43 @@ export function buildIllustrationPrompt(
       ? `Scene notes for the illustrator:\n"""\n${scene}\n"""`
       : "";
 
+  const previousSummary =
+    pageIndex > 0
+      ? extras?.previousPage?.scene?.trim() || extras?.previousPage?.text?.trim() || ""
+      : "";
+  const previousBlock = previousSummary
+    ? `The previous page showed: ${previousSummary}. This page must be a clearly different picture: a new spot within the same world, a new action, a new camera angle, a different pose for each child, and different foreground objects. Do not reuse the previous page's composition, prop arrangement or pose.`
+    : "";
+
+  const plan = extras?.pagePlanItem;
+  const hasPlanFields = Boolean(
+    plan?.location ||
+      plan?.time_and_light ||
+      plan?.camera_shot ||
+      plan?.action ||
+      plan?.focus_object ||
+      plan?.magic_moment ||
+      plan?.palette,
+  );
+  const camera = plan?.camera_shot?.trim() || compositionForPage(pageIndex);
+  const planSceneLines = hasPlanFields
+    ? [
+        plan?.location ? `Location: ${plan.location}` : "",
+        plan?.time_and_light ? `Time and light: ${plan.time_and_light}` : "",
+        plan?.palette ? `Palette: ${plan.palette}` : "",
+        `Compose this page as: ${camera}.`,
+        plan?.action ? `Action: ${plan.action}` : "",
+        plan?.focus_object ? `Focus object: ${plan.focus_object}` : "",
+        plan?.magic_moment ? `A small magic moment: ${plan.magic_moment}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n")
+    : `Compose this page as: ${compositionForPage(pageIndex)}.`;
+
+  const framing = `Frame every named child from head-and-shoulders or wider so the face is fully visible. Never crop a face out of the picture. If the story says a child wears a mask, goggles, or hat, show it with the face still visible around it — keep the eyes and expression readable.
+${planSceneLines}
+${BOTTOM_THIRD_CAPTION_RULE}`;
+
   return `${ART_STYLE}
 
 This is page ${pageIndex + 1} of ${pageCount} in a personalized picture book.
@@ -115,6 +182,9 @@ ${childLines}
 
 Keep each child's identity locked to their numbered reference image across this page.
 ${together}
+
+${framing}
+${previousBlock ? `\n${previousBlock}` : ""}
 
 Scene to illustrate, from the story:
 """

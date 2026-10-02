@@ -3,13 +3,19 @@
  * Demo orders (ids that start with `demo-`) never hit the database.
  */
 
-import { personalizedBookCopy } from "@/lib/book-title";
+import { personalizedBookCopy, printableDedication } from "@/lib/book-title";
 import { orderNumberFromDemoId } from "@/lib/order-number";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { getTrackBySlug, type Track } from "@/lib/tracks";
 import type { BookStatus } from "@/lib/supabase/types";
 import { visiblePreviewSlice } from "@/lib/personalization";
 import { illustrationPathsToSign } from "@/lib/generation-status";
+import {
+  describeGenerationPhase,
+  type GenerationPhase,
+  type GenerationStepRow,
+} from "@/lib/generation-steps";
+import type { BookGenerationStepRow } from "@/lib/supabase/types";
 
 export const MAX_CHILDREN_PER_BOOK = 4;
 
@@ -34,7 +40,11 @@ export type OrderSummary = {
   illustrationUrls: (string | null)[] | null;
   /** Signed URL of the generated cover, whose title is lettered into the art. */
   coverUrl: string | null;
+  /** Optional note for a dedication page inside the book. Null means none. */
+  dedication: string | null;
   previewGenerated: boolean;
+  generationResumeToken: string | null;
+  generationPhase: GenerationPhase | null;
 };
 
 function asPages(value: unknown): string[] | null {
@@ -130,7 +140,10 @@ export async function getOrderSummary(
       pages: null,
       illustrationUrls: null,
       coverUrl: null,
+      dedication: printableDedication(first(searchParams.dedication)),
       previewGenerated: false,
+      generationResumeToken: null,
+      generationPhase: null,
     };
   }
 
@@ -176,6 +189,8 @@ export async function getOrderSummary(
     .maybeSingle();
 
   const coverUrl = await signStoragePath(await loadCoverPath(book?.id));
+  const dedication = printableDedication(await loadDedication(book?.id));
+  const generation = await loadGenerationMeta(book?.id);
 
   const pages = visiblePreviewSlice(asPages(book?.pages) ?? []);
   const bookStatus: BookStatus = book?.status ?? "pending";
@@ -198,7 +213,10 @@ export async function getOrderSummary(
     pages: pages.length > 0 ? pages : null,
     illustrationUrls,
     coverUrl,
+    dedication,
     previewGenerated: Boolean(book?.preview_generated),
+    generationResumeToken: generation.resumeToken,
+    generationPhase: generation.phase,
   };
 }
 
@@ -217,4 +235,62 @@ async function loadCoverPath(bookId: string | undefined): Promise<string | null>
     .maybeSingle();
   if (error) return null;
   return data?.cover_path ?? null;
+}
+
+async function loadDedication(bookId: string | undefined): Promise<string | null> {
+  if (!bookId) return null;
+  const supabase = createAdminSupabaseClient();
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from("books")
+    .select("dedication")
+    .eq("id", bookId)
+    .maybeSingle();
+  if (error) return null;
+  return data?.dedication ?? null;
+}
+
+async function loadGenerationMeta(
+  bookId: string | undefined,
+): Promise<{ resumeToken: string | null; phase: GenerationPhase | null }> {
+  if (!bookId) return { resumeToken: null, phase: null };
+  const supabase = createAdminSupabaseClient();
+  if (!supabase) return { resumeToken: null, phase: null };
+
+  const { data: tokenRow, error: tokenError } = await supabase
+    .from("books")
+    .select("generation_resume_token, generation_auto_run")
+    .eq("id", bookId)
+    .maybeSingle();
+  const autoRun = Boolean(tokenRow?.generation_auto_run);
+  const resumeToken =
+    tokenError || !autoRun ? null : tokenRow?.generation_resume_token ?? null;
+
+  const { data: stepRows, error: stepError } = await supabase
+    .from("book_generation_steps")
+    .select(
+      "book_id, step, status, attempts, max_attempts, lease_token, lease_expires_at, next_retry_at, last_error, artifact_path",
+    )
+    .eq("book_id", bookId);
+  if (stepError || !stepRows || stepRows.length === 0) {
+    return { resumeToken, phase: null };
+  }
+
+  const steps: GenerationStepRow[] = stepRows.map((row) => {
+    const record = row as BookGenerationStepRow;
+    return {
+      bookId: record.book_id,
+      step: record.step,
+      status: record.status,
+      attempts: record.attempts,
+      maxAttempts: record.max_attempts,
+      leaseToken: record.lease_token,
+      leaseExpiresAt: record.lease_expires_at,
+      nextRetryAt: record.next_retry_at,
+      lastError: record.last_error,
+      artifactPath: record.artifact_path,
+    };
+  });
+
+  return { resumeToken, phase: describeGenerationPhase(steps, Date.now()) };
 }

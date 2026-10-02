@@ -15,6 +15,7 @@ import {
   describeIllustrationApiError,
   previewIllustrationCount,
   type IllustrationChild,
+  type PreviousIllustrationPage,
 } from "@/lib/illustration-prompt";
 import {
   masterIllustrationObjectPath,
@@ -22,7 +23,7 @@ import {
   stampCustomerPreview,
 } from "@/lib/illustration-watermark";
 import type { BookContinuity, PagePlanItem } from "@/lib/story-blueprint";
-import { coverLockup, dedicationLine, personalizedBookCopy } from "@/lib/book-title";
+import { coverLockup, coverStarringLine, personalizedBookCopy } from "@/lib/book-title";
 import {
   COVER_PROOF_MODEL,
   CoverVerificationError,
@@ -61,7 +62,7 @@ function mimeFromPath(path: string): string {
   return "image/jpeg";
 }
 
-async function downloadReferencePhotos(
+export async function downloadReferencePhotos(
   children: IllustrationChild[],
 ): Promise<{ child: IllustrationChild; file: File }[]> {
   const supabase = createAdminSupabaseClient();
@@ -93,6 +94,8 @@ export async function generatePageIllustration(options: {
   pageIndex: number;
   pageCount: number;
   sceneDescription?: string | null;
+  previousPage?: PreviousIllustrationPage | null;
+  pagePlanItem?: PagePlanItem | null;
   continuity?: BookContinuity | null;
 }): Promise<Buffer> {
   const apiKey = getOpenAIApiKey();
@@ -109,6 +112,8 @@ export async function generatePageIllustration(options: {
     options.pageCount,
     {
       sceneDescription: options.sceneDescription,
+      previousPage: options.previousPage,
+      pagePlanItem: options.pagePlanItem,
       continuity: options.continuity,
     },
   );
@@ -159,7 +164,7 @@ async function readCoverText(client: OpenAI, png: Buffer): Promise<string | null
           content: [
             {
               type: "text",
-              text: "Transcribe the title lettering, each child's name, and the dedication banner in this book cover, exactly as spelled, one line per line of text. Ignore letters that are objects in the scene, such as wooden alphabet blocks. If you cannot read the cover, reply NONE.",
+              text: "Transcribe the title lettering, each child's name, and any starring subtitle in this book cover, exactly as spelled, one line per line of text. Ignore letters that are objects in the scene, such as wooden alphabet blocks. If you cannot read the cover, reply NONE.",
             },
             {
               type: "image_url",
@@ -185,7 +190,6 @@ export async function generateCoverArt(options: {
   children: IllustrationChild[];
   referenceImages: File[];
   title: string;
-  dedication: string;
 }): Promise<{ png: Buffer; attempts: number; issues: string[] }> {
   const apiKey = getOpenAIApiKey();
   if (!apiKey) {
@@ -194,11 +198,12 @@ export async function generateCoverArt(options: {
 
   const client = new OpenAI({ apiKey });
   const lockup = coverLockup(options.title);
+  const starring = coverStarringLine(options.children, options.track);
   const basePrompt = buildCoverPrompt({
     track: options.track,
     children: options.children,
     lockup,
-    dedication: options.dedication,
+    starring,
   });
   const childNames = options.children.map((child) => child.name);
 
@@ -226,7 +231,7 @@ export async function generateCoverArt(options: {
       readText,
       childNames,
       lockup,
-      dedication: options.dedication,
+      starring,
     });
     const decision = decideCoverAttempt(attempt, issues);
 
@@ -241,12 +246,173 @@ export async function generateCoverArt(options: {
   }
 }
 
+export async function illustrationObjectExists(path: string): Promise<boolean> {
+  const supabase = createAdminSupabaseClient();
+  if (!supabase) return false;
+  const parts = path.split("/");
+  const name = parts.pop();
+  const dir = parts.join("/");
+  if (!name) return false;
+  const { data, error } = await supabase.storage.from(ILLUSTRATION_BUCKET).list(dir, {
+    search: name,
+    limit: 20,
+  });
+  if (error || !data) return false;
+  return data.some((entry) => entry.name === name);
+}
+
+export async function persistCoverPng(
+  bookId: string,
+  png: Buffer,
+  options?: { updateBook?: boolean },
+): Promise<string> {
+  const supabase = createAdminSupabaseClient();
+  if (!supabase) {
+    throw new Error("Supabase is not configured.");
+  }
+  const coverPath = coverObjectPath(bookId);
+  const { error: coverUploadError } = await supabase.storage
+    .from(ILLUSTRATION_BUCKET)
+    .upload(coverPath, png, {
+      contentType: "image/png",
+      cacheControl: "3600",
+      upsert: true,
+    });
+  if (coverUploadError) throw coverUploadError;
+
+  if (options?.updateBook !== false) {
+    const { error: coverSaveError } = await supabase
+      .from("books")
+      .update({ cover_path: coverPath })
+      .eq("id", bookId);
+    if (coverSaveError) {
+      console.error("Failed to save the cover path", coverSaveError);
+    }
+  }
+  return coverPath;
+}
+
+export async function persistPreviewPage(
+  bookId: string,
+  pageIndex: number,
+  masterPng: Buffer,
+  options?: { updateBook?: boolean },
+): Promise<string> {
+  const supabase = createAdminSupabaseClient();
+  if (!supabase) {
+    throw new Error("Supabase is not configured.");
+  }
+
+  const masterPath = masterIllustrationObjectPath(bookId, pageIndex);
+  const previewPath = previewIllustrationObjectPath(bookId, pageIndex);
+  const previewPng = await stampCustomerPreview(masterPng);
+
+  const { error: masterUploadError } = await supabase.storage
+    .from(ILLUSTRATION_BUCKET)
+    .upload(masterPath, masterPng, {
+      contentType: "image/png",
+      cacheControl: "3600",
+      upsert: true,
+    });
+  if (masterUploadError) throw masterUploadError;
+
+  const { error: previewUploadError } = await supabase.storage
+    .from(ILLUSTRATION_BUCKET)
+    .upload(previewPath, previewPng, {
+      contentType: "image/png",
+      cacheControl: "3600",
+      upsert: true,
+    });
+  if (previewUploadError) throw previewUploadError;
+
+  if (options?.updateBook === false) {
+    return previewPath;
+  }
+
+  const { data: book, error: loadError } = await supabase
+    .from("books")
+    .select("illustrations, page_count")
+    .eq("id", bookId)
+    .single();
+  if (loadError) throw loadError;
+
+  const length = Math.max(
+    Array.isArray(book?.illustrations) ? book.illustrations.length : 0,
+    typeof book?.page_count === "number" ? book.page_count : 0,
+    pageIndex + 1,
+  );
+  const illustrations: (string | null)[] = Array.from({ length }, (_, index) => {
+    const current = Array.isArray(book?.illustrations) ? book.illustrations[index] : null;
+    return typeof current === "string" && current.trim() ? current : null;
+  });
+  illustrations[pageIndex] = previewPath;
+
+  const { error: saveError } = await supabase
+    .from("books")
+    .update({ illustrations })
+    .eq("id", bookId);
+  if (saveError) throw saveError;
+
+  return previewPath;
+}
+
+/** Stamp a watermarked preview from an existing master. No image-model call. */
+export async function persistWatermarkedPreviewFromMaster(
+  bookId: string,
+  pageIndex: number,
+): Promise<string | null> {
+  const supabase = createAdminSupabaseClient();
+  if (!supabase) return null;
+  const masterPath = masterIllustrationObjectPath(bookId, pageIndex);
+  const previewPath = previewIllustrationObjectPath(bookId, pageIndex);
+  const { data, error } = await supabase.storage.from(ILLUSTRATION_BUCKET).download(masterPath);
+  if (error || !data) return null;
+  const masterPng = Buffer.from(await data.arrayBuffer());
+  const previewPng = await stampCustomerPreview(masterPng);
+  const { error: previewUploadError } = await supabase.storage
+    .from(ILLUSTRATION_BUCKET)
+    .upload(previewPath, previewPng, {
+      contentType: "image/png",
+      cacheControl: "3600",
+      upsert: true,
+    });
+  if (previewUploadError) return null;
+  return previewPath;
+}
+
+export async function adoptStoredPreviewPath(bookId: string, pageIndex: number, previewPath: string): Promise<void> {
+  const supabase = createAdminSupabaseClient();
+  if (!supabase) {
+    throw new Error("Supabase is not configured.");
+  }
+  const { data: book, error: loadError } = await supabase
+    .from("books")
+    .select("illustrations, page_count")
+    .eq("id", bookId)
+    .single();
+  if (loadError) throw loadError;
+  const length = Math.max(
+    Array.isArray(book?.illustrations) ? book.illustrations.length : 0,
+    typeof book?.page_count === "number" ? book.page_count : 0,
+    pageIndex + 1,
+  );
+  const illustrations: (string | null)[] = Array.from({ length }, (_, index) => {
+    const current = Array.isArray(book?.illustrations) ? book.illustrations[index] : null;
+    return typeof current === "string" && current.trim() ? current : null;
+  });
+  illustrations[pageIndex] = previewPath;
+  const { error: saveError } = await supabase
+    .from("books")
+    .update({ illustrations })
+    .eq("id", bookId);
+  if (saveError) throw saveError;
+}
+
 export async function illustrateBook(options: {
   bookId: string;
   track: Track;
   pages: string[];
   children: IllustrationChild[];
-  dedication?: string | null;
   pagePlan?: PagePlanItem[];
   continuity?: BookContinuity | null;
 }): Promise<(string | null)[]> {
@@ -266,7 +432,6 @@ export async function illustrateBook(options: {
     children: options.children,
     referenceImages,
     title,
-    dedication: dedicationLine(options.dedication),
   });
 
   const coverPath = coverObjectPath(options.bookId);
@@ -304,6 +469,14 @@ export async function illustrateBook(options: {
         pageIndex: i,
         pageCount: options.pages.length,
         sceneDescription: options.pagePlan?.[i]?.scene_description,
+        previousPage:
+          i > 0
+            ? {
+                text: options.pages[i - 1],
+                scene: options.pagePlan?.[i - 1]?.scene_description ?? null,
+              }
+            : undefined,
+        pagePlanItem: options.pagePlan?.[i] ?? null,
         continuity: options.continuity,
       });
       const masterPath = masterIllustrationObjectPath(options.bookId, i);

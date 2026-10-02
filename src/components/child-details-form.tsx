@@ -20,7 +20,7 @@ import {
   isPhotoOverSizeLimit,
 } from "@/lib/create-order-errors";
 import { createOrder, type CreateOrderState } from "@/lib/actions/create-order";
-import { DEFAULT_DEDICATION_GIVER, dedicationLine } from "@/lib/book-title";
+import { DEDICATION_PLACEHOLDER, MAX_DEDICATION_CHARS } from "@/lib/book-title";
 import { MAX_CHILDREN_PER_BOOK } from "@/lib/orders";
 import {
   CUSTOM_INTEREST_PLACEHOLDER,
@@ -51,7 +51,7 @@ const STEPS = [
   { id: "photos", label: "Photo" },
   { id: "interests", label: "What they love" },
   { id: "story", label: "Story style" },
-  { id: "gift", label: "Who it's from" },
+  { id: "gift", label: "A note" },
 ] as const;
 
 const LAST_STEP = STEPS.length - 1;
@@ -372,21 +372,22 @@ export function ChildDetailsForm({ track }: { track: Track }) {
 
       <StepPanel active={step === LAST_STEP}>
         <label className="block space-y-2">
-          <span className="text-sm font-semibold text-ink">The gift is from</span>
-          <input
-            type="text"
-            maxLength={40}
-            placeholder={DEFAULT_DEDICATION_GIVER}
+          <span className="text-sm font-semibold text-ink">
+            A note from whoever is gifting the book
+          </span>
+          <textarea
+            maxLength={MAX_DEDICATION_CHARS}
+            placeholder={DEDICATION_PLACEHOLDER}
             value={giver}
             onChange={(event) => setGiver(event.target.value)}
             disabled={pending}
+            rows={3}
             className="w-full rounded-2xl border border-rule bg-cream px-4 py-3 text-ink outline-none ring-coral/30 placeholder:text-ink-soft focus:ring-2"
           />
         </label>
         <p className="mt-3 text-sm text-ink-soft">
-          It will read{" "}
-          <span className="font-semibold text-ink">{dedicationLine(giver)}</span> on the
-          cover. Leave it blank for {dedicationLine("")}.
+          Printed on its own page inside the book, never on the cover. Leave it
+          blank to skip.
         </p>
 
         <dl className="mt-7 space-y-3 rounded-[22px] border border-rule bg-white/55 p-5 text-sm">

@@ -2,10 +2,23 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { generationStatusPath, startGenerationStatusPoll } from "@/lib/generation-status";
+import {
+  generationStatusPath,
+  generationTickPath,
+  startGenerationStatusPoll,
+} from "@/lib/generation-status";
 
-/** Polls a tiny status endpoint until generation finishes, then refreshes once. */
-export function RefreshWhileGenerating({ orderId }: { orderId: string }) {
+/**
+ * Polls a read-only status endpoint. When a step is claimable, POSTs a tick
+ * with the per-order resume token. GET never starts a model call.
+ */
+export function RefreshWhileGenerating({
+  orderId,
+  resumeToken,
+}: {
+  orderId: string;
+  resumeToken: string | null;
+}) {
   const router = useRouter();
 
   useEffect(() => {
@@ -15,8 +28,29 @@ export function RefreshWhileGenerating({ orderId }: { orderId: string }) {
           cache: "no-store",
           signal,
         });
-        return response.ok ? await response.json() : null;
+        const payload = response.ok ? await response.json() : null;
+        if (
+          payload &&
+          typeof payload === "object" &&
+          "needsTick" in payload &&
+          payload.needsTick === true &&
+          resumeToken
+        ) {
+          await fetch(generationTickPath(orderId), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ resumeToken }),
+            signal,
+          });
+          const again = await fetch(generationStatusPath(orderId), {
+            cache: "no-store",
+            signal,
+          });
+          return again.ok ? await again.json() : payload;
+        }
+        return payload;
       },
+      onProgress: () => router.refresh(),
       onReady: () => router.refresh(),
       setTimer: (run, delayMs) => window.setTimeout(run, delayMs),
       clearTimer: (id) => window.clearTimeout(id),
@@ -37,7 +71,7 @@ export function RefreshWhileGenerating({ orderId }: { orderId: string }) {
       poll.stop();
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [orderId, router]);
+  }, [orderId, resumeToken, router]);
 
   return null;
 }

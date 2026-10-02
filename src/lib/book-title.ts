@@ -21,7 +21,9 @@ const TRACK_TITLE_PHRASES: Record<string, string> = {
 
 const TITLE_CONNECTOR = "and the";
 
-export const DEFAULT_DEDICATION_GIVER = "Mom and Dad";
+/** Shown on the order form. Blank means no dedication page. */
+export const DEDICATION_PLACEHOLDER = "Optional - leave blank to skip";
+export const MAX_DEDICATION_CHARS = 300;
 
 export type BookTitleChild = {
   name: string;
@@ -111,11 +113,26 @@ export function coverLockup(title: string): CoverLockup {
   return { lead: null, connector: null, rest: clean };
 }
 
-/** The small line printed at the bottom of a cover, under the picture. */
-export function dedicationLine(giver?: string | null): string {
-  const clean = (giver ?? "").trim().replace(/\s+/g, " ");
-  const from = clean.length > 0 ? clean : DEFAULT_DEDICATION_GIVER;
-  return /^from\b/i.test(from) ? from : `From ${from}`;
+/**
+ * Optional note printed on its own dedication page inside the book — never on
+ * the cover. Blank, the form placeholder, and the old default cover line
+ * "From Mom and Dad" (any capitalization or spacing) print nothing.
+ * A bare "Mom and Dad" is kept, because a customer may type that on purpose.
+ */
+export function printableDedication(raw?: string | null): string | null {
+  const withoutMarkup = (raw ?? "").replace(/<[^>]*>/g, " ");
+  const clean = withoutMarkup.replace(/\s+/g, " ").trim();
+  if (!clean || clean === DEDICATION_PLACEHOLDER) return null;
+  if (/^from mom and dad$/i.test(clean)) return null;
+  return clean.slice(0, MAX_DEDICATION_CHARS);
+}
+
+/** Title lockup plus the starring line painted into the cover art. */
+export function coverStarringLine(
+  children: BylineChild[],
+  track: BookTitleTrack,
+): string | null {
+  return coverByline(children) ?? personalizedBookCopy(children, track).subtitle;
 }
 
 /**

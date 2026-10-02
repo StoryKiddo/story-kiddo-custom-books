@@ -82,12 +82,12 @@ export type CoverPromptOptions = {
   track: Track;
   children: IllustrationChild[];
   lockup: CoverLockup;
-  /** "From Mom and Dad" — painted small at the foot of the cover. */
-  dedication: string;
+  /** "Starring …" under the title. Null when the title already names everyone. */
+  starring: string | null;
 };
 
 export function buildCoverPrompt(options: CoverPromptOptions): string {
-  const { track, children, lockup, dedication } = options;
+  const { track, children, lockup, starring } = options;
 
   const childLines = children
     .map((child, index) => {
@@ -108,6 +108,10 @@ export function buildCoverPrompt(options: CoverPromptOptions): string {
     .map((child) => `${child.name} is spelled ${child.name.toUpperCase().split("").join("-")}`)
     .join(". ");
 
+  const starringBlock = starring
+    ? `Under the title, in smaller lettering, paint this subtitle exactly: ${starring}.`
+    : "";
+
   return `${ART_STYLE}
 
 This is the front cover of a personalized picture book. Square format.
@@ -116,16 +120,18 @@ Theme: ${track.name}. ${track.description}
 Reference images (use these identities only):
 ${childLines}
 
-Compose it like a published picture-book cover: the named child standing near the centre of a rich ${track.name.toLowerCase()} scene, friendly invented companions beside them, the top third of the picture left open enough for the title.
+Compose it like a published picture-book cover: the named child standing near the centre of a rich ${track.name.toLowerCase()} scene, friendly invented companions beside them, the top third of the picture left open enough for the title. Frame the child from head-and-shoulders or wider so the face is fully visible. Never crop the face out.
 
 The title is part of the painting. Letter it into the artwork itself, in ${letteringStyleFor(track)}. Do not render it as a flat computer font pasted on top.
 
 Title, set on these lines exactly, centred in the upper part of the cover:
 ${titleLines}
 
+${starringBlock}
+
 Spelling is critical. Copy the words exactly as given, letter for letter. ${spellings}. No extra words, no invented words, no repeated lines.
 
-At the foot of the cover, paint a small ribbon or banner carrying only this line, in much smaller lettering: "${dedication}".
+Do not paint a dedication, a giver line, a ribbon, or any text that starts with "From". The cover shows only the title and the starring subtitle.
 
 No other text anywhere: no author line, no publisher, no page numbers, no watermark, no speech bubbles.`;
 }
@@ -155,7 +161,7 @@ export type CoverProofInput = {
   readText: string | null | undefined;
   childNames: string[];
   lockup: CoverLockup;
-  dedication: string;
+  starring: string | null;
 };
 
 export class CoverVerificationError extends Error {
@@ -178,9 +184,9 @@ export function isCoverVerificationError(error: unknown): error is CoverVerifica
 
 /**
  * Problems that fail the cover. Every required title line, each child's name,
- * the connector, and the dedication must be present; extra or garbled visible
- * text fails too. A missing or unusable read-back is a failed verification,
- * never a pass.
+ * the connector, and the starring subtitle must be present; extra or garbled
+ * visible text fails too. A missing or unusable read-back is a failed
+ * verification, never a pass.
  */
 export function coverProofIssues(input: CoverProofInput): string[] {
   if (input.readText == null) {
@@ -274,10 +280,10 @@ function requiredCoverPhrases(input: CoverProofInput): RequiredPhrase[] {
       tokens: tokenize(input.lockup.rest),
     });
   }
-  if (input.dedication) {
+  if (input.starring) {
     phrases.push({
-      label: `The dedication "${input.dedication}" is missing from the cover.`,
-      tokens: tokenize(input.dedication),
+      label: `The subtitle "${input.starring}" is missing from the cover.`,
+      tokens: tokenize(input.starring),
     });
   }
 

@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
-  GENERATION_LIMIT_SECONDS,
   GENERATION_STAGES,
   formatElapsed,
   generationExpectation,
@@ -35,15 +34,19 @@ describe("generation progress", () => {
     assert.equal(formatElapsed(-500), "0 seconds");
   });
 
-  it("only quotes the limit the pipeline is actually given", () => {
-    const copy = generationExpectation();
-    assert.match(copy, new RegExp(`${GENERATION_LIMIT_SECONDS / 60} minutes`));
-    // No invented shipping or review claims belong in this copy.
+  it("does not promise a hard stop after a number of minutes", () => {
+    const copy = generationExpectation("working");
+    assert.doesNotMatch(copy, /5 minutes/);
+    assert.doesNotMatch(copy, /we stop and tell you/i);
     assert.doesNotMatch(copy, /star|review|deliver|ship/i);
+    assert.match(generationExpectation("stalled"), /stalled/i);
+    assert.match(generationExpectation("retryable"), /try that step again/i);
+    assert.match(generationExpectation("held"), /paused/i);
+    assert.match(generationExpectation("failed"), /order is saved/i);
   });
 
-  it("knows when generation has run past its limit", () => {
-    assert.equal(isOverGenerationLimit(GENERATION_LIMIT_SECONDS * 1000 - 1), false);
-    assert.equal(isOverGenerationLimit(GENERATION_LIMIT_SECONDS * 1000 + 1), true);
+  it("only calls a wait long after ten minutes, and that is not a kill switch", () => {
+    assert.equal(isOverGenerationLimit(10 * 60 * 1000 - 1), false);
+    assert.equal(isOverGenerationLimit(10 * 60 * 1000 + 1), true);
   });
 });

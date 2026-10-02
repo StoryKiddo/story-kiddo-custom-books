@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BookInProgress } from "@/components/book-in-progress";
+import { DedicationPage } from "@/components/dedication-page";
 import { OrderCover } from "@/components/order-cover";
 import { RefreshWhileGenerating } from "@/components/refresh-while-generating";
 import { StoryPages } from "@/components/story-pages";
@@ -102,25 +103,37 @@ export default async function OrderPage({
       </div>
 
       {order.isDemo ? (
-        <p className="mt-10 rounded-2xl border border-rule bg-cream/80 px-5 py-4 text-sm text-ink-soft">
-          This order was not saved to Supabase. Add the keys from{" "}
-          <code className="rounded bg-paper-deep px-1.5 py-0.5 text-ink">.env.example</code>{" "}
-          to <code className="rounded bg-paper-deep px-1.5 py-0.5 text-ink">.env.local</code>{" "}
-          and run the SQL in <code className="rounded bg-paper-deep px-1.5 py-0.5 text-ink">supabase/migrations/</code>{" "}
-          to store customers, orders, photos, and books.
-        </p>
+        <>
+          <p className="mt-10 rounded-2xl border border-rule bg-cream/80 px-5 py-4 text-sm text-ink-soft">
+            This order was not saved to Supabase. Add the keys from{" "}
+            <code className="rounded bg-paper-deep px-1.5 py-0.5 text-ink">.env.example</code>{" "}
+            to <code className="rounded bg-paper-deep px-1.5 py-0.5 text-ink">.env.local</code>{" "}
+            and run the SQL in <code className="rounded bg-paper-deep px-1.5 py-0.5 text-ink">supabase/migrations/</code>{" "}
+            to store customers, orders, photos, and books.
+          </p>
+          {order.dedication ? (
+            <DedicationPage track={order.track} note={order.dedication} />
+          ) : null}
+        </>
       ) : storyPages ? (
         <>
           {stillWorking ? (
             <>
-              <RefreshWhileGenerating orderId={order.id} />
+              <RefreshWhileGenerating
+                orderId={order.id}
+                resumeToken={order.generationResumeToken}
+              />
               <BookInProgress
                 status={order.bookStatus}
+                phase={order.generationPhase}
                 track={order.track}
                 childName={order.children[0]?.name ?? "your child"}
                 startedAtIso={order.createdAt}
               />
             </>
+          ) : null}
+          {order.dedication ? (
+            <DedicationPage track={order.track} note={order.dedication} />
           ) : null}
           {order.bookStatus === "failed" ? (
             <p className="mt-10 rounded-2xl border border-rule bg-cream/80 px-5 py-4 text-sm text-ink-soft">
@@ -135,9 +148,15 @@ export default async function OrderPage({
         </p>
       ) : (
         <>
-          {waitingOnStory ? <RefreshWhileGenerating orderId={order.id} /> : null}
+          {waitingOnStory ? (
+            <RefreshWhileGenerating
+              orderId={order.id}
+              resumeToken={order.generationResumeToken}
+            />
+          ) : null}
           <BookInProgress
             status={order.bookStatus}
+            phase={order.generationPhase}
             track={order.track}
             childName={order.children[0]?.name ?? "your child"}
             startedAtIso={order.createdAt}

@@ -1,9 +1,8 @@
 /** Read-aloud story pages on the order confirmation screen.
  *  Before payment we only show the first seven pages (or fewer if the book is shorter).
  *
- *  Each page is laid out like a real picture-book page: the illustration on
- *  top, and the words set inside a panel that belongs to that theme's world —
- *  a parchment scroll, a cloud, a painted sign — tipped in over the join.
+ *  Each page is one 2:3 picture card. Caption text sits on the artwork over a
+ *  soft scrim — never on a separate plate under the image.
  */
 
 import { StoryPanel } from "@/components/story-panel";
@@ -18,6 +17,9 @@ export type StoryPageView = {
 };
 
 type PageTrack = Pick<Track, "slug" | "name" | "art">;
+
+const CARD_SHADOW =
+  "0 1px 0 rgba(255,255,255,0.18) inset, 0 22px 38px -24px rgba(35,26,19,0.5)";
 
 export function StoryPages({
   pages,
@@ -69,46 +71,42 @@ function StoryPage({
   imageUrl: string | null;
   painting: boolean;
 }) {
-  const { deep, accent } = track.art;
-
   return (
     <figure
-      className="paper-grain relative overflow-hidden rounded-[30px] border border-ink/10 shadow-[0_1px_0_rgba(255,255,255,0.6)_inset,0_22px_38px_-24px_rgba(35,26,19,0.5)]"
-      style={{ background: `linear-gradient(180deg, ${withAlpha(accent, 0.22)}, ${withAlpha(accent, 0.1)})` }}
+      className="relative mx-auto w-full max-w-[32rem] overflow-hidden rounded-[30px]"
+      style={{ boxShadow: CARD_SHADOW }}
     >
-      <div className="relative">
+      <div className="relative aspect-[2/3] w-full">
         {imageUrl ? (
           // Signed storage URLs are short-lived and private; a plain img avoids next/image host config.
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={imageUrl}
             alt={`Illustration for page ${number}`}
-            className="aspect-[4/5] w-full object-cover sm:aspect-[16/10]"
+            className="h-full w-full"
           />
         ) : (
-          <div
-            className="aspect-[4/5] w-full sm:aspect-[16/10]"
-            style={{
-              background: `linear-gradient(180deg, ${withAlpha(accent, 0.35)}, ${withAlpha(accent, 0.12)})`,
-            }}
-          />
+          <div className="story-page-wash absolute inset-0" />
         )}
-        <PageNumber number={number} deep={deep} />
+        <PageNumber number={number} />
         {painting ? (
           <p
-            className="absolute right-5 top-5 rounded-full px-3 py-1.5 text-[0.68rem] font-semibold uppercase tracking-[0.16em] sm:right-6 sm:top-6"
-            style={{ background: withAlpha("#fffaf3", 0.9), color: deep }}
+            className="absolute right-5 top-5 z-10 rounded-full px-3 py-1.5 text-[0.68rem] font-semibold uppercase tracking-[0.16em] sm:right-6 sm:top-6"
+            style={{
+              background: "rgba(40, 28, 20, 0.45)",
+              color: "#fff6e6",
+            }}
           >
             Painting this picture…
           </p>
         ) : null}
-      </div>
-
-      <div className="relative -mt-14 px-4 pb-8 sm:-mt-16 sm:px-8 sm:pb-10">
         <StoryPanel track={track}>
           <p
-            className="whitespace-pre-line text-center font-story text-[1.16rem] leading-[1.75] sm:text-[1.3rem]"
-            style={{ color: deep }}
+            className="story-caption-text whitespace-pre-line text-center font-story leading-[1.75]"
+            style={{
+              color: "#fff6e6",
+              textShadow: "0 1px 2px rgba(40, 28, 20, 0.65), 0 0 18px rgba(40, 28, 20, 0.35)",
+            }}
           >
             {text}
           </p>
@@ -118,14 +116,14 @@ function StoryPage({
   );
 }
 
-function PageNumber({ number, deep }: { number: number; deep: string }) {
+function PageNumber({ number }: { number: number }) {
   return (
     <span
       className="absolute left-5 top-5 z-10 flex h-9 w-9 items-center justify-center rounded-full font-display text-sm font-bold sm:left-6 sm:top-6"
       style={{
-        background: withAlpha("#fffaf3", 0.92),
-        color: deep,
-        boxShadow: `0 2px 10px -4px ${withAlpha(deep, 0.8)}`,
+        background: "rgba(40, 28, 20, 0.45)",
+        color: "#fff6e6",
+        boxShadow: `0 2px 10px -4px ${withAlpha("#281c14", 0.8)}`,
       }}
     >
       <span aria-hidden="true">{number}</span>

@@ -2,7 +2,10 @@
  * Generates the artwork that ships in `public/brand/`:
  *
  *   covers/<slug>.png    square cover art with the title lettered into the
- *                        picture and the dedication line at the foot
+ *                        picture and a starring line under it
+ *   mockups/<slug>.png   that cover built into a standing hardcover with a
+ *                        spine, page block, and cast shadow
+ *   hero/*.png           the gift-moment scene behind the homepage headline
  *   mockups/<slug>.png   that cover built into a standing hardcover with a
  *                        spine, page block, and cast shadow
  *   hero/*.png           the gift-moment scene behind the homepage headline
@@ -18,7 +21,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import sharp from "sharp";
 import type { OverlayOptions, Sharp } from "sharp";
-import { coverLockup, dedicationLine, personalizedBookCopy } from "../src/lib/book-title.ts";
+import { coverLockup, coverStarringLine, personalizedBookCopy } from "../src/lib/book-title.ts";
 import { sceneDocument, themeScene } from "../src/lib/art/scene.ts";
 import { giftMomentScene, pressWorkshopScene } from "../src/lib/art/hero-scene.ts";
 import { TRACKS, type Track } from "../src/lib/tracks.ts";
@@ -42,17 +45,6 @@ const EXAMPLE_CHILDREN: Record<string, string> = {
   "life-milestones": "Kai",
   "animals-nature": "Ivy",
   manners: "Jonah",
-};
-
-const EXAMPLE_GIVERS: Record<string, string> = {
-  alphabet: "Mom and Dad",
-  numbers: "Grandma",
-  "colors-shapes": "Mom and Dad",
-  emotions: "Auntie Jo",
-  "kindness-values": "Mom and Mama",
-  "life-milestones": "Dad",
-  "animals-nature": "Grandpa",
-  manners: "Mom and Dad",
 };
 
 function escapeMarkup(text: string): string {
@@ -179,9 +171,10 @@ function flourish(width: number, color: string): string {
 
 async function renderCover(track: Track): Promise<Buffer> {
   const childName = EXAMPLE_CHILDREN[track.slug] ?? "Sam";
-  const { title } = personalizedBookCopy([{ name: childName }], track);
+  const exampleChild = { name: childName, age: 4 };
+  const { title } = personalizedBookCopy([exampleChild], track);
   const lockup = coverLockup(title);
-  const dedication = dedicationLine(EXAMPLE_GIVERS[track.slug]);
+  const starring = coverStarringLine([exampleChild], track);
 
   const scene = themeScene(track, { shape: "square", uid: `cover-${track.slug}` });
   const base = await sharp(Buffer.from(sceneDocument(scene)))
@@ -239,38 +232,22 @@ async function renderCover(track: Track): Promise<Buffer> {
     width: COVER_SIZE - 150,
   });
   layers.push({ input: rest.buffer, left: Math.round((COVER_SIZE - rest.width) / 2), top: cursor });
+  cursor += rest.height + Math.round(COVER_SIZE * 0.02);
 
-  // Dedication on a small painted banner at the foot of the cover.
-  const dedicationRaster = await letteringLayer({
-    text: dedication,
-    size: 46,
-    color: ink,
-    width: COVER_SIZE - 400,
-    keyline: 4,
-  });
-  const bannerWidth = dedicationRaster.width + 90;
-  const bannerHeight = dedicationRaster.height + 6;
-  const bannerTop = COVER_SIZE - bannerHeight - Math.round(COVER_SIZE * 0.05);
-  const banner = Buffer.from(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${bannerWidth}" height="${bannerHeight}" viewBox="0 0 ${bannerWidth} ${bannerHeight}">` +
-      `<path d="M30 6h${bannerWidth - 60}l-16 ${bannerHeight / 2 - 6} 16 ${bannerHeight / 2 - 6}H30l16-${
-        bannerHeight / 2 - 6
-      }z" fill="#fffaf0" opacity="0.88"/>` +
-      `<path d="M30 6h${bannerWidth - 60}l-16 ${bannerHeight / 2 - 6} 16 ${bannerHeight / 2 - 6}H30l16-${
-        bannerHeight / 2 - 6
-      }z" fill="none" stroke="${track.art.accent}" stroke-width="3" opacity="0.7"/>` +
-      `</svg>`,
-  );
-  layers.push({
-    input: await sharp(banner).png().toBuffer(),
-    left: Math.round((COVER_SIZE - bannerWidth) / 2),
-    top: bannerTop,
-  });
-  layers.push({
-    input: dedicationRaster.buffer,
-    left: Math.round((COVER_SIZE - dedicationRaster.width) / 2),
-    top: bannerTop + 3,
-  });
+  if (starring) {
+    const starringRaster = await letteringLayer({
+      text: starring,
+      size: 42,
+      color: ink,
+      width: COVER_SIZE - 280,
+      keyline: 4,
+    });
+    layers.push({
+      input: starringRaster.buffer,
+      left: Math.round((COVER_SIZE - starringRaster.width) / 2),
+      top: cursor,
+    });
+  }
 
   // Imprint, bottom right, the way a publisher's mark sits on a jacket.
   const imprint = await letteringLayer({

@@ -17,7 +17,7 @@
 import { randomUUID } from "node:crypto";
 import { after } from "next/server";
 import { redirect } from "next/navigation";
-import { dedicationLine, personalizedBookCopy } from "@/lib/book-title";
+import { personalizedBookCopy, printableDedication } from "@/lib/book-title";
 import {
   CREATE_ORDER_MESSAGES,
   isAllowedPhotoType,
@@ -27,13 +27,13 @@ import {
   messageForPhotoUploadFailure,
 } from "@/lib/create-order-errors";
 import { MAX_CHILDREN_PER_BOOK } from "@/lib/orders";
-import { generateStoryPages, isAnthropicConfigured } from "@/lib/generate-story";
-import { isCoverVerificationError } from "@/lib/cover-prompt";
+import { isAnthropicConfigured } from "@/lib/generate-story";
+import { isOpenAIConfigured } from "@/lib/generate-illustrations";
 import {
-  illustrateBook,
-  isOpenAIConfigured,
-} from "@/lib/generate-illustrations";
-import { previewGenerationSucceeded } from "@/lib/illustration-prompt";
+  GENERATION_DRAIN_BUDGET_MS,
+} from "@/lib/generation-steps";
+import { createGenerationRuntime, seedGenerationSteps } from "@/lib/generation-runtime";
+import { drainGeneration } from "@/lib/generation-workflow";
 import {
   normalizeCustomInterest,
   normalizeInterestIds,
@@ -44,7 +44,7 @@ import {
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { resolveCreateOrderTrack } from "@/lib/create-order-track";
-import { isLaunchTrack, type Track } from "@/lib/tracks";
+import { isLaunchTrack } from "@/lib/tracks";
 
 export type CreateOrderState = {
   error?: string;
@@ -71,7 +71,7 @@ type ParsedChild = {
 
 function parseChildren(
   formData: FormData,
-): { children: ParsedChild[]; storyType: StoryTypeId; dedication: string } | { error: string } {
+): { children: ParsedChild[]; storyType: StoryTypeId; dedication: string | null } | { error: string } {
   const names = formData.getAll("childName").map(asString);
   const ages = formData.getAll("childAge").map(asString);
   const photos = formData.getAll("photo");
@@ -118,7 +118,7 @@ function parseChildren(
     });
   }
 
-  return { children, storyType, dedication: dedicationLine(asString(formData.get("giver"))) };
+  return { children, storyType, dedication: printableDedication(asString(formData.get("giver"))) };
 }
 
 export async function createOrder(
@@ -164,6 +164,9 @@ async function submitCreateOrder(formData: FormData): Promise<CreateOrderState> 
     for (const child of children) {
       params.append("childName", child.name);
       params.append("childAge", String(child.age));
+    }
+    if (dedication) {
+      params.set("dedication", dedication);
     }
     redirect(`/order/${demoId}?${params.toString()}`);
   }
@@ -294,8 +297,24 @@ async function submitCreateOrder(formData: FormData): Promise<CreateOrderState> 
     }
 
     if (book && isAnthropicConfigured()) {
-      await supabase.from("books").update({ status: "generating" }).eq("id", book.id);
-      scheduleStoryGeneration(book.id, track, uploaded, storyType, dedication);
+      const autoRun = await supabase
+        .from("books")
+        .update({ status: "generating", generation_auto_run: true })
+        .eq("id", book.id);
+      if (autoRun.error) {
+        await supabase.from("books").update({ status: "generating" }).eq("id", book.id);
+      }
+      await seedGenerationSteps(book.id, { skipPictures: !isOpenAIConfigured() });
+      const bookId = book.id;
+      after(async () => {
+        const runtime = await createGenerationRuntime(bookId);
+        if (!runtime) return;
+        try {
+          await drainGeneration(bookId, runtime, Date.now() + GENERATION_DRAIN_BUDGET_MS);
+        } catch (error) {
+          console.error("Generation drain failed", error);
+        }
+      });
     }
   } catch (error) {
     if (isNextRedirectError(error)) throw error;
@@ -303,111 +322,4 @@ async function submitCreateOrder(formData: FormData): Promise<CreateOrderState> 
   }
 
   redirect(`/order/${order.id}`);
-}
-
-function scheduleStoryGeneration(
-  bookId: string,
-  track: Track,
-  children: {
-    name: string;
-    age: number;
-    photoPath: string;
-    interestIds: string[];
-    customInterest: string | null;
-    personalNote: string | null;
-  }[],
-  storyType: StoryTypeId,
-  dedication: string,
-) {
-  after(async () => {
-    const admin = createAdminSupabaseClient();
-    if (!admin) return;
-
-    const childInputs = children.map((child) => ({
-      name: child.name,
-      age: child.age,
-      interests: child.interestIds,
-      customInterest: child.customInterest,
-      personalNote: child.personalNote,
-    }));
-
-    try {
-      let story;
-      try {
-        story = await generateStoryPages(track, childInputs, storyType);
-      } catch (error) {
-        console.error("Story generation failed, retrying once", error);
-        story = await generateStoryPages(track, childInputs, storyType);
-      }
-      const pages = story.pages;
-      const paintPictures = isOpenAIConfigured();
-      const { error: storyError } = await admin
-        .from("books")
-        .update({
-          status: paintPictures ? "illustrating" : "complete",
-          pages,
-          page_count: pages.length,
-          preview_generated: false,
-          story_type: storyType,
-          blueprint: story.blueprint,
-          continuity: story.continuity,
-          page_plan: story.pagePlan,
-        })
-        .eq("id", bookId);
-
-      if (storyError) {
-        console.error("Failed to save generated story", storyError);
-        await admin.from("books").update({ status: "failed" }).eq("id", bookId);
-        return;
-      }
-
-      if (!paintPictures) return;
-
-      try {
-        let illustrations;
-        try {
-          illustrations = await illustrateBook({
-            bookId,
-            track,
-            pages,
-            children,
-            dedication,
-            pagePlan: story.pagePlan,
-            continuity: story.continuity,
-          });
-        } catch (error) {
-          if (isCoverVerificationError(error)) {
-            console.error("Cover verification failed", error);
-            await admin.from("books").update({ status: "failed" }).eq("id", bookId);
-            return;
-          }
-          console.error("Illustration generation failed, retrying once", error);
-          illustrations = await illustrateBook({
-            bookId,
-            track,
-            pages,
-            children,
-            dedication,
-            pagePlan: story.pagePlan,
-            continuity: story.continuity,
-          });
-        }
-        const previewOk = previewGenerationSucceeded(illustrations, pages.length);
-        await admin
-          .from("books")
-          .update({
-            illustrations,
-            preview_generated: previewOk,
-            status: previewOk ? "complete" : "failed",
-          })
-          .eq("id", bookId);
-      } catch (error) {
-        console.error("Illustration generation failed", error);
-        await admin.from("books").update({ status: "failed" }).eq("id", bookId);
-      }
-    } catch (error) {
-      console.error("Story generation failed", error);
-      await admin.from("books").update({ status: "failed" }).eq("id", bookId);
-    }
-  });
 }

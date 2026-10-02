@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
-  DEFAULT_DEDICATION_GIVER,
+  DEDICATION_PLACEHOLDER,
+  MAX_DEDICATION_CHARS,
   coverByline,
   coverLockup,
-  dedicationLine,
+  coverStarringLine,
   personalizedBookCopy,
+  printableDedication,
 } from "./book-title.ts";
 import { TRACKS, getTrackBySlug } from "./tracks.ts";
 
@@ -117,21 +119,34 @@ describe("coverLockup", () => {
   });
 });
 
-describe("dedicationLine", () => {
-  it("prefixes a giver with From", () => {
-    assert.equal(dedicationLine("Grandma"), "From Grandma");
-    assert.equal(dedicationLine("  Mom and Dad  "), "From Mom and Dad");
+describe("printableDedication", () => {
+  it("returns null when blank or the skip placeholder", () => {
+    assert.equal(printableDedication(""), null);
+    assert.equal(printableDedication("   "), null);
+    assert.equal(printableDedication(null), null);
+    assert.equal(printableDedication(undefined), null);
+    assert.equal(printableDedication(DEDICATION_PLACEHOLDER), null);
   });
 
-  it("does not double the prefix", () => {
-    assert.equal(dedicationLine("From Santa"), "From Santa");
-    assert.equal(dedicationLine("from santa"), "from santa");
+  it("treats the old cover default as blank, any capitalization or spacing", () => {
+    assert.equal(printableDedication("From Mom and Dad"), null);
+    assert.equal(printableDedication("FROM MOM AND DAD"), null);
+    assert.equal(printableDedication("from  mom   and  dad"), null);
+    assert.equal(printableDedication(" From Mom and Dad "), null);
   });
 
-  it("falls back to a neutral giver", () => {
-    assert.equal(dedicationLine(""), `From ${DEFAULT_DEDICATION_GIVER}`);
-    assert.equal(dedicationLine(null), `From ${DEFAULT_DEDICATION_GIVER}`);
-    assert.equal(dedicationLine(undefined), `From ${DEFAULT_DEDICATION_GIVER}`);
+  it("keeps a bare Mom and Dad that a customer typed on purpose", () => {
+    assert.equal(printableDedication("Mom and Dad"), "Mom and Dad");
+  });
+
+  it("keeps a real note, trims, strips markup, and caps length", () => {
+    assert.equal(printableDedication("  For Sam, with love.  "), "For Sam, with love.");
+    assert.equal(printableDedication("From Grandma"), "From Grandma");
+    assert.equal(printableDedication("<b>Love you</b>"), "Love you");
+    assert.equal(
+      (printableDedication("x".repeat(MAX_DEDICATION_CHARS + 40)) ?? "").length,
+      MAX_DEDICATION_CHARS,
+    );
   });
 });
 
@@ -152,6 +167,14 @@ describe("coverByline", () => {
   it("trims whitespace and ignores empty names", () => {
     assert.equal(coverByline(kids("  Dylan  ")), "Starring Dylan, age 4");
     assert.equal(coverByline([]), null);
+  });
+
+  it("uses the byline or the subtitle as the painted starring line", () => {
+    assert.equal(coverStarringLine(kids("Dylan"), alphabet), "Starring Dylan, age 4");
+    assert.equal(
+      coverStarringLine(kids("Dylan", "Mia", "Leo"), alphabet),
+      "Starring Dylan, Mia & Leo",
+    );
   });
 });
 

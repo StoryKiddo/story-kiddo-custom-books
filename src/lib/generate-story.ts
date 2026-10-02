@@ -17,6 +17,7 @@ import {
   continuityFromBlueprint,
   parseBlueprint,
   parseGeneratedPages,
+  repairPagePlanVariety,
   toNormalizedChildren,
   type BookContinuity,
   type PagePlanItem,
@@ -135,6 +136,10 @@ export async function generateStoryPages(
     pages: pageTexts,
     blueprint,
     continuity,
-    pagePlan,
+    pagePlan: repairPagePlanVariety(pagePlan, {
+      childNames: children.map((child) => child.name),
+      themeSlug: track.slug,
+      storyType,
+    }),
   };
 }
