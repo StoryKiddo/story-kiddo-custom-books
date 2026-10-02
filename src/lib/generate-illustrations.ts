@@ -95,6 +95,7 @@ export async function generatePageIllustration(options: {
   pageCount: number;
   sceneDescription?: string | null;
   previousPage?: PreviousIllustrationPage | null;
+  pagePlanItem?: PagePlanItem | null;
   continuity?: BookContinuity | null;
 }): Promise<Buffer> {
   const apiKey = getOpenAIApiKey();
@@ -112,6 +113,7 @@ export async function generatePageIllustration(options: {
     {
       sceneDescription: options.sceneDescription,
       previousPage: options.previousPage,
+      pagePlanItem: options.pagePlanItem,
       continuity: options.continuity,
     },
   );
@@ -474,6 +476,7 @@ export async function illustrateBook(options: {
                 scene: options.pagePlan?.[i - 1]?.scene_description ?? null,
               }
             : undefined,
+        pagePlanItem: options.pagePlan?.[i] ?? null,
         continuity: options.continuity,
       });
       const masterPath = masterIllustrationObjectPath(options.bookId, i);

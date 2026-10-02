@@ -365,6 +365,9 @@ export async function createGenerationRuntime(bookId: string): Promise<Generatio
                     ?.scene_description ?? null,
               }
             : undefined,
+        pagePlanItem:
+          (pagePlan[pageIndex] as Parameters<typeof generatePageIllustration>[0]["pagePlanItem"]) ??
+          null,
         continuity: (book.continuity as Parameters<typeof generatePageIllustration>[0]["continuity"]) ?? null,
       });
     },

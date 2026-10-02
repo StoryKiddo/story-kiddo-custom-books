@@ -4,6 +4,7 @@
  */
 
 import type { Track } from "./tracks";
+import type { PagePlanItem } from "./story-blueprint";
 
 export const ILLUSTRATION_MODEL = "gpt-image-2" as const;
 export const ILLUSTRATION_SIZE = "1024x1536" as const;
@@ -71,6 +72,9 @@ export type PreviousIllustrationPage = {
   scene?: string | null;
 };
 
+export const BOTTOM_THIRD_CAPTION_RULE =
+  "Keep the bottom third of the picture calmer and slightly darker, with soft shapes and no busy detail or bright highlights, because the story text sits over it.";
+
 export function buildIllustrationPrompt(
   track: Track,
   children: IllustrationChild[],
@@ -80,6 +84,7 @@ export function buildIllustrationPrompt(
   extras?: {
     sceneDescription?: string | null;
     previousPage?: PreviousIllustrationPage | null;
+    pagePlanItem?: PagePlanItem | null;
     continuity?: {
       world_description?: string | null;
       companion_characters?: string[];
@@ -138,8 +143,34 @@ export function buildIllustrationPrompt(
     ? `The previous page showed: ${previousSummary}. This page must be a clearly different picture: a new spot within the same world, a new action, a new camera angle, a different pose for each child, and different foreground objects. Do not reuse the previous page's composition, prop arrangement or pose.`
     : "";
 
+  const plan = extras?.pagePlanItem;
+  const hasPlanFields = Boolean(
+    plan?.location ||
+      plan?.time_and_light ||
+      plan?.camera_shot ||
+      plan?.action ||
+      plan?.focus_object ||
+      plan?.magic_moment ||
+      plan?.palette,
+  );
+  const camera = plan?.camera_shot?.trim() || compositionForPage(pageIndex);
+  const planSceneLines = hasPlanFields
+    ? [
+        plan?.location ? `Location: ${plan.location}` : "",
+        plan?.time_and_light ? `Time and light: ${plan.time_and_light}` : "",
+        plan?.palette ? `Palette: ${plan.palette}` : "",
+        `Compose this page as: ${camera}.`,
+        plan?.action ? `Action: ${plan.action}` : "",
+        plan?.focus_object ? `Focus object: ${plan.focus_object}` : "",
+        plan?.magic_moment ? `A small magic moment: ${plan.magic_moment}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n")
+    : `Compose this page as: ${compositionForPage(pageIndex)}.`;
+
   const framing = `Frame every named child from head-and-shoulders or wider so the face is fully visible. Never crop a face out of the picture. If the story says a child wears a mask, goggles, or hat, show it with the face still visible around it — keep the eyes and expression readable.
-Compose this page as: ${compositionForPage(pageIndex)}.`;
+${planSceneLines}
+${BOTTOM_THIRD_CAPTION_RULE}`;
 
   return `${ART_STYLE}
 

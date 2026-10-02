@@ -4,6 +4,7 @@ import { describe, it } from "node:test";
 import { getTrackBySlug } from "./tracks.ts";
 import {
   ART_STYLE,
+  BOTTOM_THIRD_CAPTION_RULE,
   ILLUSTRATION_MODEL,
   PAGE_COMPOSITIONS,
   PREVIEW_ILLUSTRATION_COUNT,
@@ -258,5 +259,50 @@ describe("previous-page wiring", () => {
     assert.match(generate, /scene: options\.pagePlan\?\.\[i - 1\]\?\.scene_description/);
     assert.match(runtime, /text: book\.pages\[pageIndex - 1\]/);
     assert.match(runtime, /pagePlan\[pageIndex - 1\]/);
+    assert.match(generate, /pagePlanItem: options\.pagePlanItem/);
+    assert.match(generate, /pagePlanItem: options\.pagePlan\?\.\[i\]/);
+    assert.match(runtime, /pagePlanItem:/);
+  });
+});
+
+describe("scene-plan image prompt", () => {
+  it("builds the scene from plan fields and always adds the bottom-third rule", () => {
+    const prompt = buildIllustrationPrompt(manners, [mia], "Mia waves.", 0, 8, {
+      pagePlanItem: {
+        letter: null,
+        scene_description: "Mia waves from the garden path.",
+        characters_present: ["Mia"],
+        location: "garden path",
+        time_and_light: "golden morning",
+        camera_shot: "over-the-shoulder from behind",
+        action: "waving at a bird",
+        focus_object: "lantern",
+        magic_moment: "the lantern glows",
+        palette: "warm honey golds",
+      },
+    });
+    assert.match(prompt, /Location: garden path/);
+    assert.match(prompt, /Time and light: golden morning/);
+    assert.match(prompt, /Palette: warm honey golds/);
+    assert.match(prompt, /Compose this page as: over-the-shoulder from behind/);
+    assert.match(prompt, /Action: waving at a bird/);
+    assert.match(prompt, /Focus object: lantern/);
+    assert.match(prompt, /A small magic moment: the lantern glows/);
+    assert.ok(prompt.includes(BOTTOM_THIRD_CAPTION_RULE));
+  });
+
+  it("keeps the old prompt for pages without plan fields, plus the bottom-third rule", () => {
+    const prompt = buildIllustrationPrompt(manners, [mia], "Mia says please.", 0, 8);
+    const withoutCaptionRule = prompt.replace(`${BOTTOM_THIRD_CAPTION_RULE}\n`, "").replace(
+      BOTTOM_THIRD_CAPTION_RULE,
+      "",
+    );
+    assert.ok(prompt.includes(BOTTOM_THIRD_CAPTION_RULE));
+    assert.match(withoutCaptionRule, /Compose this page as: close shot, low angle, child large in the foreground/);
+    assert.doesNotMatch(withoutCaptionRule, /^Location:/m);
+    assert.doesNotMatch(withoutCaptionRule, /Time and light:/);
+    assert.doesNotMatch(withoutCaptionRule, /Palette:/);
+    assert.match(withoutCaptionRule, /head-and-shoulders or wider/);
+    assert.match(withoutCaptionRule, /Never crop a face/);
   });
 });
